@@ -99,6 +99,136 @@ export function useWebLLM() {
     []
   );
 
+  const cancelGenerationRef = useRef(false);
+
+  const generate = useCallback(
+    async (prompt: string, modelIds: string[]) => {
+      if (!engineRef.current || modelIds.length === 0 || !prompt.trim()) return;
+
+      setIsGenerating(true);
+      cancelGenerationRef.current = false;
+      setError(null);
+
+      setResults((prev) => {
+        const next = { ...prev };
+        for (const id of modelIds) {
+          next[id] = createEmptyResult();
+        }
+        return next;
+      });
+
+      setResults((prev) => {
+        const next = { ...prev };
+        for (const id of modelIds) {
+          next[id] = { ...next[id], isStreaming: true };
+        }
+        return next;
+      });
+
+      const engine = engineRef.current;
+
+      const runModel = async (modelId: string) => {
+        const request: webllm.ChatCompletionRequest = {
+          stream: true,
+          stream_options: { include_usage: true },
+          messages: [{ role: "user", content: prompt }],
+          model: modelId,
+          max_tokens: MODELS[modelId]?.defaultParams.max_tokens ?? 200,
+          temperature: MODELS[modelId]?.defaultParams.temperature ?? 0.7,
+          top_p: MODELS[modelId]?.defaultParams.top_p ?? 0.9,
+        };
+
+        const startTime = Date.now();
+        let firstTokenCaptured = false;
+
+        try {
+          const stream = await engine.chat.completions.create(request);
+
+          for await (const chunk of stream) {
+            if (cancelGenerationRef.current) break;
+
+            const content = chunk.choices[0]?.delta?.content || "";
+            if (content) {
+              if (!firstTokenCaptured) {
+                firstTokenCaptured = true;
+                setResults((prev) => ({
+                  ...prev,
+                  [modelId]: {
+                    ...prev[modelId],
+                    firstTokenTime: Date.now() - startTime,
+                  },
+                }));
+              }
+
+              setResults((prev) => ({
+                ...prev,
+                [modelId]: {
+                  ...prev[modelId],
+                  text: prev[modelId].text + content,
+                },
+              }));
+            }
+
+            if (chunk.usage) {
+              const inferenceTime = Date.now() - startTime;
+              const tokenCount = chunk.usage.completion_tokens;
+              setResults((prev) => ({
+                ...prev,
+                [modelId]: {
+                  ...prev[modelId],
+                  inferenceTime,
+                  tokenCount,
+                  tokensPerSecond: tokenCount / (inferenceTime / 1000),
+                  isStreaming: false,
+                },
+              }));
+            }
+          }
+        } catch (err) {
+          setResults((prev) => ({
+            ...prev,
+            [modelId]: {
+              ...prev[modelId],
+              text: `Error: ${err instanceof Error ? err.message : "Generation failed"}`,
+              isStreaming: false,
+            },
+          }));
+        }
+      };
+
+      await Promise.all(modelIds.map(runModel));
+      setIsGenerating(false);
+    },
+    []
+  );
+
+  const cancelGeneration = useCallback(() => {
+    cancelGenerationRef.current = true;
+    if (engineRef.current) {
+      engineRef.current.interruptGenerate();
+    }
+    setIsGenerating(false);
+    setResults((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        if (next[key].isStreaming) {
+          next[key] = { ...next[key], isStreaming: false };
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const clearResults = useCallback(() => {
+    setResults((prev) => {
+      const next = { ...prev };
+      for (const id of Object.keys(next)) {
+        next[id] = createEmptyResult();
+      }
+      return next;
+    });
+  }, []);
+
   return {
     engineReady,
     modelStatus,
@@ -108,6 +238,9 @@ export function useWebLLM() {
     error,
     loadModel,
     unloadModel,
+    generate,
+    cancelGeneration,
+    clearResults,
     clearError: () => setError(null),
   };
 }
