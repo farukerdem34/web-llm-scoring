@@ -52,7 +52,7 @@ export function ResponseCard({ modelId, result }: ResponseCardProps) {
           {result.text && !result.isStreaming && (
             <button
               onClick={handleCopy}
-              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+              className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
             >
               {copied ? "Copied!" : "Copy"}
             </button>

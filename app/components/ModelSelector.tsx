@@ -49,7 +49,7 @@ export function ModelSelector({
                 aria-checked={isSelected}
                 aria-label={`Toggle ${model.name}`}
                 onClick={() => onToggle(modelId)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                   isSelected ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"
                 }`}
               >
