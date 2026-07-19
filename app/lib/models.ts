@@ -9,6 +9,7 @@ export const MODELS: Record<string, ModelConfig> = {
     description: "Fast, lightweight",
     color: "blue",
     defaultParams: { temperature: 0.7, top_p: 0.9, max_tokens: 200 },
+    chatOptions: { context_window_size: 4096 },
   },
   "gemma-2-9b-it-q4f32_1-MLC": {
     id: "gemma-2-9b-it-q4f32_1-MLC",
@@ -17,6 +18,7 @@ export const MODELS: Record<string, ModelConfig> = {
     description: "Balanced quality",
     color: "purple",
     defaultParams: { temperature: 0.7, top_p: 0.9, max_tokens: 200 },
+    chatOptions: { context_window_size: 8192 },
   },
 };
 

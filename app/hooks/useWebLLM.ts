@@ -94,7 +94,7 @@ export function useWebLLM() {
       loadingModelRef.current = modelId;
       setModelStatus((prev) => ({ ...prev, [modelId]: "loading" }));
       try {
-        await engineRef.current.reload(modelId);
+        await engineRef.current.reload(modelId, MODELS[modelId]?.chatOptions);
         loadedModelsRef.current.add(modelId);
         setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
       } catch (err) {
@@ -135,7 +135,7 @@ export function useWebLLM() {
         // Reload each remaining model sequentially to avoid race conditions
         for (const id of remainingModels) {
           try {
-            await engineRef.current.reload(id);
+            await engineRef.current.reload(id, MODELS[id]?.chatOptions);
             setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
           } catch {
             loadedModelsRef.current.delete(id);
@@ -218,7 +218,7 @@ export function useWebLLM() {
     for (const modelId of modelsToReload) {
       loadingModelRef.current = modelId;
       try {
-        await engine.reload(modelId);
+        await engine.reload(modelId, MODELS[modelId]?.chatOptions);
         setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
       } catch {
         loadedModelsRef.current.delete(modelId);

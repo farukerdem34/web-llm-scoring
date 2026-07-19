@@ -12,6 +12,11 @@ export interface ModelConfig {
     top_p: number;
     max_tokens: number;
   };
+  chatOptions?: {
+    context_window_size?: number;
+    sliding_window_size?: number;
+    repetition_penalty?: number;
+  };
 }
 
 export interface GenerationResult {
