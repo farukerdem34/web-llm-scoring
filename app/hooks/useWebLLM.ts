@@ -7,7 +7,7 @@ import {
   type AppConfig,
 } from "@mlc-ai/web-llm";
 import { MODEL_IDS, MODELS } from "@/app/lib/models";
-import { ModelStatus, GenerationResult } from "@/app/lib/types";
+import { ModelStatus, GenerationResult, InferenceConfig } from "@/app/lib/types";
 
 const appConfig: AppConfig = { ...prebuiltAppConfig, cacheBackend: "indexeddb" };
 
@@ -236,7 +236,7 @@ export function useWebLLM() {
   }, []);
 
   const generate = useCallback(
-    async (prompt: string, modelIds: string[]) => {
+    async (prompt: string, modelIds: string[], config?: InferenceConfig) => {
       if (!engineRef.current || modelIds.length === 0 || !prompt.trim()) return;
 
       setIsGenerating(true);
@@ -261,9 +261,13 @@ export function useWebLLM() {
           stream_options: { include_usage: true },
           messages: [{ role: "user", content: prompt }],
           model: modelId,
-          max_tokens: MODELS[modelId]?.defaultParams.max_tokens ?? 200,
-          temperature: MODELS[modelId]?.defaultParams.temperature ?? 0.7,
-          top_p: MODELS[modelId]?.defaultParams.top_p ?? 0.9,
+          max_tokens: config?.max_tokens ?? MODELS[modelId]?.defaultParams.max_tokens ?? 200,
+          temperature: config?.temperature ?? MODELS[modelId]?.defaultParams.temperature ?? 0.7,
+          top_p: config?.top_p ?? MODELS[modelId]?.defaultParams.top_p ?? 0.9,
+          frequency_penalty: config?.frequency_penalty,
+          presence_penalty: config?.presence_penalty,
+          repetition_penalty: config?.repetition_penalty,
+          ignore_eos: config?.ignore_eos,
         };
 
         const startTime = Date.now();

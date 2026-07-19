@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useWebLLM } from "./hooks/useWebLLM";
+import { useConfig } from "./hooks/useConfig";
 import { ModelSelector } from "./components/ModelSelector";
 import { PromptInput } from "./components/PromptInput";
 import { ComparisonView } from "./components/ComparisonView";
+import { ConfigSidebar } from "./components/ConfigSidebar";
 
 const STORAGE_KEY = "llm-playground-selected-models";
 
@@ -27,20 +29,27 @@ export default function Home() {
     clearError,
   } = useWebLLM();
 
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const {
+    config,
+    updateConfig,
+    resetConfig,
+    resetSingle,
+  } = useConfig();
 
-  // Hydrate from localStorage after mount to avoid server/client mismatch
-  useEffect(() => {
+  const [selectedModels, setSelectedModels] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setSelectedModels(parsed);
+          return parsed;
         }
       }
     } catch {}
-  }, []);
+    return [];
+  });
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedModels));
@@ -80,7 +89,7 @@ export default function Home() {
   }, [engineReady, loadModel, modelStatus, selectedModels]);
 
   const handleGenerate = (prompt: string) => {
-    generate(prompt, selectedModels);
+    generate(prompt, selectedModels, config);
   };
 
   return (
@@ -88,12 +97,43 @@ export default function Home() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <header className="border-b border-slate-200 dark:border-slate-800 pb-6 mb-6">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-            LLM Playground
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Compare Gemma models side-by-side with browser-based inference
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                LLM Playground
+              </h1>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Compare Gemma models side-by-side with browser-based inference
+              </p>
+            </div>
+            <button
+              onClick={() => setIsConfigOpen(true)}
+              className="p-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              aria-label="Open inference settings"
+              title="Inference Settings"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            </button>
+          </div>
         </header>
 
         {/* Error Banner */}
@@ -172,6 +212,16 @@ export default function Home() {
           <ComparisonView selectedModels={selectedModels} results={results} />
         </section>
       </div>
+
+      {/* Config Sidebar */}
+      <ConfigSidebar
+        isOpen={isConfigOpen}
+        onClose={() => setIsConfigOpen(false)}
+        config={config}
+        onUpdate={updateConfig}
+        onReset={resetConfig}
+        onResetSingle={resetSingle}
+      />
     </div>
   );
 }
