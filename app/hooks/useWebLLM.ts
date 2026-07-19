@@ -8,6 +8,7 @@ import { ModelStatus, GenerationResult } from "@/app/lib/types";
 export function useWebLLM() {
   const engineRef = useRef<webllm.WebWorkerMLCEngine | null>(null);
   const loadingModelRef = useRef<string | null>(null);
+  const loadLockRef = useRef(false);
   const [engineReady, setEngineReady] = useState(false);
   const [modelStatus, setModelStatus] = useState<Record<string, ModelStatus>>(
     () => Object.fromEntries(MODEL_IDS.map((id) => [id, "idle"]))
@@ -58,12 +59,32 @@ export function useWebLLM() {
 
   const loadModel = useCallback(
     async (modelId: string) => {
-      if (!engineRef.current) return;
+      if (!engineRef.current || loadLockRef.current) return;
+      loadLockRef.current = true;
       loadingModelRef.current = modelId;
-      setModelStatus((prev) => ({ ...prev, [modelId]: "loading" }));
+      setModelStatus((prev) => {
+        const next = { ...prev };
+        for (const id of MODEL_IDS) {
+          next[id] = id === modelId ? "loading" : "idle";
+        }
+        return next;
+      });
+      setLoadProgress((prev) => {
+        const next = { ...prev };
+        for (const id of MODEL_IDS) {
+          next[id] = 0;
+        }
+        return next;
+      });
       try {
         await engineRef.current.reload(modelId);
-        setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
+        setModelStatus((prev) => {
+          const next = { ...prev };
+          for (const id of MODEL_IDS) {
+            next[id] = id === modelId ? "ready" : "idle";
+          }
+          return next;
+        });
       } catch (err) {
         setModelStatus((prev) => ({ ...prev, [modelId]: "error" }));
         setError(
@@ -73,20 +94,31 @@ export function useWebLLM() {
         );
       } finally {
         loadingModelRef.current = null;
+        loadLockRef.current = false;
       }
     },
     []
   );
 
   const unloadModel = useCallback(
-    async (modelId: string) => {
+    async () => {
       if (!engineRef.current) return;
       try {
-        // NOTE: WebLLM's unload() unloads all models from the engine.
-        // We only reset the targeted model's state since that's what the caller requested.
         await engineRef.current.unload();
-        setModelStatus((prev) => ({ ...prev, [modelId]: "idle" }));
-        setLoadProgress((prev) => ({ ...prev, [modelId]: 0 }));
+        setModelStatus((prev) => {
+          const next = { ...prev };
+          for (const id of MODEL_IDS) {
+            next[id] = "idle";
+          }
+          return next;
+        });
+        setLoadProgress((prev) => {
+          const next = { ...prev };
+          for (const id of MODEL_IDS) {
+            next[id] = 0;
+          }
+          return next;
+        });
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to unload model"
@@ -102,13 +134,16 @@ export function useWebLLM() {
     async (prompt: string, modelIds: string[]) => {
       if (!engineRef.current || modelIds.length === 0 || !prompt.trim()) return;
 
+      const readyIds = modelIds.filter((id) => modelStatus[id] === "ready");
+      if (readyIds.length === 0) return;
+
       setIsGenerating(true);
       cancelGenerationRef.current = false;
       setError(null);
 
       setResults((prev) => {
         const next = { ...prev };
-        for (const id of modelIds) {
+        for (const id of readyIds) {
           next[id] = { ...createEmptyResult(), isStreaming: true };
         }
         return next;
@@ -185,10 +220,10 @@ export function useWebLLM() {
         }
       };
 
-      await Promise.all(modelIds.map(runModel));
+      await Promise.all(readyIds.map(runModel));
       setIsGenerating(false);
     },
-    []
+    [modelStatus]
   );
 
   const cancelGeneration = useCallback(() => {

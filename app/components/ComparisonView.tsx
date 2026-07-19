@@ -4,37 +4,28 @@ import { GenerationResult } from "@/app/lib/types";
 import { ResponseCard } from "./ResponseCard";
 
 interface ComparisonViewProps {
-  selectedModels: string[];
+  selectedModel: string | null;
   results: Record<string, GenerationResult>;
 }
 
 export function ComparisonView({
-  selectedModels,
+  selectedModel,
   results,
 }: ComparisonViewProps) {
-  if (selectedModels.length === 0) {
+  if (!selectedModel) {
     return (
       <div className="text-center py-12 text-slate-400">
-        Select at least one model to see responses
+        Select a model to see its response
       </div>
     );
   }
 
   return (
-    <div
-      className={`grid gap-4 ${
-        selectedModels.length === 1
-          ? "grid-cols-1"
-          : "grid-cols-1 md:grid-cols-2"
-      }`}
-    >
-      {selectedModels.map((modelId) => (
-        <ResponseCard
-          key={modelId}
-          modelId={modelId}
-          result={results[modelId] || createEmptyResult()}
-        />
-      ))}
+    <div className="grid gap-4 grid-cols-1">
+      <ResponseCard
+        modelId={selectedModel}
+        result={results[selectedModel] || createEmptyResult()}
+      />
     </div>
   );
 }

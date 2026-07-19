@@ -5,14 +5,14 @@ import { ModelStatus } from "@/app/lib/types";
 import { ProgressBar } from "./ProgressBar";
 
 interface ModelSelectorProps {
-  selectedModels: string[];
+  selectedModel: string | null;
   modelStatus: Record<string, ModelStatus>;
   loadProgress: Record<string, number>;
   onToggle: (modelId: string) => void;
 }
 
 export function ModelSelector({
-  selectedModels,
+  selectedModel,
   modelStatus,
   loadProgress,
   onToggle,
@@ -26,7 +26,7 @@ export function ModelSelector({
         if (!model) return null;
         const status = modelStatus[modelId] || "idle";
         const progress = loadProgress[modelId] || 0;
-        const isSelected = selectedModels.includes(modelId);
+        const isSelected = selectedModel === modelId;
 
         return (
           <div

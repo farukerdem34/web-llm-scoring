@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useWebLLM } from "./hooks/useWebLLM";
 import { ModelSelector } from "./components/ModelSelector";
 import { PromptInput } from "./components/PromptInput";
 import { ComparisonView } from "./components/ComparisonView";
-import { MODEL_IDS } from "./lib/models";
 
-const STORAGE_KEY = "llm-playground-selected-models";
+const STORAGE_KEY = "llm-playground-selected-model";
 
 export default function Home() {
   const {
@@ -25,61 +24,42 @@ export default function Home() {
     clearError,
   } = useWebLLM();
 
-  const [selectedModels, setSelectedModels] = useState<string[]>(MODEL_IDS);
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
-  // Hydrate from localStorage after mount to avoid server/client mismatch
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSelectedModels(parsed);
-        }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setSelectedModel(stored);
       }
     } catch {}
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedModels));
-  }, [selectedModels]);
+    if (selectedModel) {
+      localStorage.setItem(STORAGE_KEY, selectedModel);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [selectedModel]);
 
-  const hasReadyModel = selectedModels.some(
-    (id) => modelStatus[id] === "ready"
-  );
+  const hasReadyModel = selectedModel !== null && modelStatus[selectedModel] === "ready";
 
   const handleToggle = (modelId: string) => {
-    setSelectedModels((prev) => {
-      const isSelected = prev.includes(modelId);
-      if (isSelected) {
-        if (prev.length === 1) return prev;
-        unloadModel(modelId);
-        return prev.filter((id) => id !== modelId);
-      } else {
-        loadModel(modelId);
-        return [...prev, modelId];
-      }
-    });
+    if (modelId === selectedModel) {
+      unloadModel();
+      setSelectedModel(null);
+    } else {
+      setSelectedModel(modelId);
+      loadModel(modelId);
+    }
   };
 
-  const autoLoadRequestedRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (engineReady) {
-      for (const modelId of selectedModels) {
-        if (
-          modelStatus[modelId] === "idle" &&
-          !autoLoadRequestedRef.current.has(modelId)
-        ) {
-          autoLoadRequestedRef.current.add(modelId);
-          loadModel(modelId);
-        }
-      }
-    }
-  }, [engineReady, loadModel, modelStatus, selectedModels]);
-
   const handleGenerate = (prompt: string) => {
-    generate(prompt, selectedModels);
+    if (selectedModel) {
+      generate(prompt, [selectedModel]);
+    }
   };
 
   return (
@@ -123,10 +103,10 @@ export default function Home() {
         {/* Model Selector */}
         <section className="mb-6">
           <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-            Select Models
+            Select Model
           </h2>
           <ModelSelector
-            selectedModels={selectedModels}
+            selectedModel={selectedModel}
             modelStatus={modelStatus}
             loadProgress={loadProgress}
             onToggle={handleToggle}
@@ -147,9 +127,9 @@ export default function Home() {
         {/* Comparison View */}
         <section>
           <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-            Responses
+            Response
           </h2>
-          <ComparisonView selectedModels={selectedModels} results={results} />
+          <ComparisonView selectedModel={selectedModel} results={results} />
         </section>
       </div>
     </div>
