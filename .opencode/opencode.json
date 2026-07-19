@@ -28,14 +28,6 @@
       "headers":{
         "Authorization": "Bearer {env:GITHUB_PERSONAL_ACCESS_TOKEN}"
       }
-    },
-    "promptsentinel-github": {
-      "type": "local",
-      "command": [
-        "npx",
-        "mcp-remote",
-        "https://gitmcp.io/Eraybeylik/PromptSentinel"
-      ]
     }
   }
 }

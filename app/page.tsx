@@ -125,7 +125,13 @@ export default function Home() {
           <div className="mb-4 flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
             {gpuVendor && <span>GPU: {gpuVendor}</span>}
             {gpuMaxBufferSize != null && (
-              <span>
+              <span
+                className={
+                  gpuMaxBufferSize < 1_073_741_824
+                    ? "text-amber-400 dark:text-amber-500"
+                    : undefined
+                }
+              >
                 Buffer: {(gpuMaxBufferSize / 1_073_741_824).toFixed(1)} GB
               </span>
             )}

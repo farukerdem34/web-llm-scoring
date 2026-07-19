@@ -62,11 +62,6 @@ export function useWebLLM() {
           const maxBufferSize = await engine.getMaxStorageBufferBindingSize();
           setGpuVendor(vendor);
           setGpuMaxBufferSize(maxBufferSize);
-          if (maxBufferSize < 1_073_741_824) {
-            setError(
-              `GPU buffer size (${(maxBufferSize / 1_073_741_824).toFixed(1)} GB) is below 1 GB. The 9B model may not load.`
-            );
-          }
         } catch {
           // GPU info is non-critical; proceed without it
         }
