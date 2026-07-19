@@ -67,7 +67,7 @@ export default function Home() {
         }
       }
     }
-  }, [engineReady]);
+  }, [engineReady, loadModel, modelStatus, selectedModels]);
 
   const handleGenerate = (prompt: string) => {
     generate(prompt, selectedModels);

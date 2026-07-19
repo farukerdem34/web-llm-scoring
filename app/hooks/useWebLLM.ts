@@ -72,6 +72,7 @@ export function useWebLLM() {
   );
 
   const unloadModel = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async (modelId: string) => {
       if (!engineRef.current) return;
       try {
