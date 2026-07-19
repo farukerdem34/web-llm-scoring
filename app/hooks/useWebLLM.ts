@@ -215,6 +215,8 @@ export function useWebLLM() {
         }
       };
 
+      await engine.resetChat();
+
       await Promise.all(modelIds.map(runModel));
       setIsGenerating(false);
     },
