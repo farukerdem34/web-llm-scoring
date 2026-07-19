@@ -20,7 +20,7 @@ export function ModelSelector({
   const modelIds = getModelIds();
 
   return (
-    <div className="flex gap-4 flex-wrap">
+    <div className="flex gap-4 flex-col sm:flex-row">
       {modelIds.map((modelId) => {
         const model = MODELS[modelId];
         if (!model) return null;
@@ -33,26 +33,32 @@ export function ModelSelector({
             key={modelId}
             className={`flex-1 min-w-[200px] border rounded-lg p-4 transition-all ${
               isSelected
-                ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
-                : "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
+                ? "border-blue-500 bg-blue-50 dark:bg-blue-950 dark:border-blue-400"
+                : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 hover:shadow-sm"
             }`}
           >
             <div className="flex items-start justify-between mb-2">
               <div>
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100">
                   {model.name}
                 </h3>
-                <p className="text-sm text-zinc-500">{model.params} parameters</p>
+                <p className="text-sm text-slate-500">{model.params} parameters</p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => onToggle(modelId)}
-                  className="sr-only peer"
+              <button
+                role="switch"
+                aria-checked={isSelected}
+                aria-label={`Toggle ${model.name}`}
+                onClick={() => onToggle(modelId)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  isSelected ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    isSelected ? "translate-x-4" : "translate-x-0.5"
+                  }`}
                 />
-                <div className="w-9 h-5 bg-zinc-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer dark:bg-zinc-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-zinc-600 peer-checked:bg-blue-600"></div>
-              </label>
+              </button>
             </div>
 
             <div className="mt-2">
@@ -66,7 +72,7 @@ export function ModelSelector({
             )}
 
             {model.description && (
-              <p className="mt-2 text-xs text-zinc-400">{model.description}</p>
+              <p className="mt-2 text-xs text-slate-400">{model.description}</p>
             )}
           </div>
         );
@@ -77,8 +83,8 @@ export function ModelSelector({
 
 function StatusBadge({ status }: { status: ModelStatus }) {
   const styles: Record<ModelStatus, string> = {
-    idle: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
-    loading: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
+    idle: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400",
+    loading: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
     ready: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
     error: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
   };
@@ -99,10 +105,10 @@ function StatusBadge({ status }: { status: ModelStatus }) {
           status === "ready"
             ? "bg-green-500"
             : status === "loading"
-              ? "bg-yellow-500 animate-pulse"
+              ? "bg-amber-500 animate-pulse"
               : status === "error"
                 ? "bg-red-500"
-                : "bg-zinc-400"
+                : "bg-slate-400"
         }`}
       />
       {labels[status]}
