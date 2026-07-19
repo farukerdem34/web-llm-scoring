@@ -23,6 +23,13 @@ export function useWebLLM() {
 
   useEffect(() => {
     const initEngine = async () => {
+      const gpu = (navigator as Navigator & { gpu?: unknown }).gpu;
+      if (!gpu) {
+        setError(
+          "WebGPU is not supported in this browser. Please use a WebGPU-compatible browser (Chrome 113+, Edge 113+)."
+        );
+        return;
+      }
       try {
         const worker = new Worker(
           new URL("../lib/webllm-worker.ts", import.meta.url),
@@ -72,25 +79,14 @@ export function useWebLLM() {
   );
 
   const unloadModel = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async (modelId: string) => {
       if (!engineRef.current) return;
       try {
+        // NOTE: WebLLM's unload() unloads all models from the engine.
+        // We only reset the targeted model's state since that's what the caller requested.
         await engineRef.current.unload();
-        setModelStatus((prev) => {
-          const next = { ...prev };
-          for (const id of MODEL_IDS) {
-            next[id] = "idle";
-          }
-          return next;
-        });
-        setLoadProgress((prev) => {
-          const next = { ...prev };
-          for (const id of MODEL_IDS) {
-            next[id] = 0;
-          }
-          return next;
-        });
+        setModelStatus((prev) => ({ ...prev, [modelId]: "idle" }));
+        setLoadProgress((prev) => ({ ...prev, [modelId]: 0 }));
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to unload model"
@@ -113,15 +109,7 @@ export function useWebLLM() {
       setResults((prev) => {
         const next = { ...prev };
         for (const id of modelIds) {
-          next[id] = createEmptyResult();
-        }
-        return next;
-      });
-
-      setResults((prev) => {
-        const next = { ...prev };
-        for (const id of modelIds) {
-          next[id] = { ...next[id], isStreaming: true };
+          next[id] = { ...createEmptyResult(), isStreaming: true };
         }
         return next;
       });

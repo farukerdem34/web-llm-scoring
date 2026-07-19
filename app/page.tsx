@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWebLLM } from "./hooks/useWebLLM";
 import { ModelSelector } from "./components/ModelSelector";
 import { PromptInput } from "./components/PromptInput";
@@ -59,10 +59,16 @@ export default function Home() {
     });
   };
 
+  const autoLoadRequestedRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (engineReady) {
       for (const modelId of selectedModels) {
-        if (modelStatus[modelId] === "idle") {
+        if (
+          modelStatus[modelId] === "idle" &&
+          !autoLoadRequestedRef.current.has(modelId)
+        ) {
+          autoLoadRequestedRef.current.add(modelId);
           loadModel(modelId);
         }
       }

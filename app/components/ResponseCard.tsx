@@ -12,13 +12,13 @@ interface ResponseCardProps {
 export function ResponseCard({ modelId, result }: ResponseCardProps) {
   const model = MODELS[modelId];
   const [copied, setCopied] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState("0.0");
 
   useEffect(() => {
     if (!result.isStreaming) return;
     const start = Date.now();
     const interval = setInterval(() => {
-      setElapsed(((Date.now() - start) / 1000).toFixed(1) as unknown as number);
+      setElapsed(((Date.now() - start) / 1000).toFixed(1));
     }, 100);
     return () => clearInterval(interval);
   }, [result.isStreaming, result.text]);
@@ -94,7 +94,7 @@ export function ResponseCard({ modelId, result }: ResponseCardProps) {
             {result.isStreaming ? (
               <>
                 <span>
-                  ⏱ {typeof elapsed === "number" ? elapsed.toFixed(1) : elapsed}s
+                  ⏱ {elapsed}s
                 </span>
                 <span className="animate-pulse">Generating...</span>
               </>
