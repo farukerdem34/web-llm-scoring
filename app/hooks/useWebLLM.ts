@@ -143,8 +143,8 @@ export function useWebLLM() {
     const name = err.name?.toLowerCase() ?? "";
     return (
       name.includes("gpudevlost") ||
-      name.includes("device") && name.includes("lost") ||
-      msg.includes("device") && (msg.includes("lost") || msg.includes("removed")) ||
+      (name.includes("device") && name.includes("lost")) ||
+      (msg.includes("device") && (msg.includes("lost") || msg.includes("removed"))) ||
       msg.includes("webgpu device") ||
       msg.includes("gpu device")
     );
@@ -223,7 +223,8 @@ export function useWebLLM() {
 
       const engine = engineRef.current;
 
-      const runModel = async (modelId: string) => {
+      const runModel = async (modelId: string, activeEngine?: webllm.WebWorkerMLCEngine) => {
+        const currentEngine = activeEngine ?? engine;
         const request: webllm.ChatCompletionRequest = {
           stream: true,
           stream_options: { include_usage: true },
@@ -238,7 +239,7 @@ export function useWebLLM() {
         let firstTokenCaptured = false;
 
         try {
-          const stream = await engine.chat.completions.create(request);
+          const stream = await currentEngine.chat.completions.create(request);
 
           for await (const chunk of stream) {
             if (cancelGenerationRef.current) break;
@@ -285,6 +286,8 @@ export function useWebLLM() {
             deviceLostRetryRef.current = true;
             try {
               await reinitializeEngine();
+              const newEngine = engineRef.current;
+              if (!newEngine) throw new Error("Engine reinitialization failed");
               setResults((prev) => {
                 const next = { ...prev };
                 for (const id of modelIds) {
@@ -292,8 +295,8 @@ export function useWebLLM() {
                 }
                 return next;
               });
-              await engine.resetChat();
-              await Promise.all(modelIds.map(runModel));
+              await newEngine.resetChat();
+              await Promise.all(modelIds.map((id) => runModel(id, newEngine)));
               return;
             } catch {
               setResults((prev) => ({
@@ -304,6 +307,7 @@ export function useWebLLM() {
                   isStreaming: false,
                 },
               }));
+              return;
             }
           }
           setResults((prev) => ({
@@ -319,7 +323,7 @@ export function useWebLLM() {
 
       await engine.resetChat();
 
-      await Promise.all(modelIds.map(runModel));
+      await Promise.all(modelIds.map((id) => runModel(id)));
       setIsGenerating(false);
     },
     [isDeviceLostError, reinitializeEngine]
