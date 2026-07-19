@@ -13,6 +13,7 @@ export default function Home() {
     engineReady,
     modelStatus,
     loadProgress,
+    loadStatus,
     isGenerating,
     results,
     error,
@@ -147,6 +148,7 @@ export default function Home() {
             selectedModels={selectedModels}
             modelStatus={modelStatus}
             loadProgress={loadProgress}
+            loadStatus={loadStatus}
             onToggle={handleToggle}
           />
         </section>

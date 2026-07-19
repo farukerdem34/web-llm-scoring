@@ -8,6 +8,7 @@ interface ModelSelectorProps {
   selectedModels: string[];
   modelStatus: Record<string, ModelStatus>;
   loadProgress: Record<string, number>;
+  loadStatus: Record<string, string>;
   onToggle: (modelId: string) => void;
 }
 
@@ -15,6 +16,7 @@ export function ModelSelector({
   selectedModels,
   modelStatus,
   loadProgress,
+  loadStatus,
   onToggle,
 }: ModelSelectorProps) {
   const modelIds = getModelIds();
@@ -26,6 +28,7 @@ export function ModelSelector({
         if (!model) return null;
         const status = modelStatus[modelId] || "idle";
         const progress = loadProgress[modelId] || 0;
+        const statusText = loadStatus[modelId] || "";
         const isSelected = selectedModels.includes(modelId);
 
         return (
@@ -68,6 +71,11 @@ export function ModelSelector({
             {status === "loading" && (
               <div className="mt-3">
                 <ProgressBar progress={progress} label="Loading model" />
+                {statusText && (
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500 truncate">
+                    {statusText}
+                  </p>
+                )}
               </div>
             )}
 

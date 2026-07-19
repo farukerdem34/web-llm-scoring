@@ -22,6 +22,9 @@ export function useWebLLM() {
   const [loadProgress, setLoadProgress] = useState<Record<string, number>>(
     () => Object.fromEntries(MODEL_IDS.map((id) => [id, 0]))
   );
+  const [loadStatus, setLoadStatus] = useState<Record<string, string>>(
+    () => Object.fromEntries(MODEL_IDS.map((id) => [id, ""]))
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [results, setResults] = useState<Record<string, GenerationResult>>(
     () => Object.fromEntries(MODEL_IDS.map((id) => [id, createEmptyResult()]))
@@ -46,11 +49,15 @@ export function useWebLLM() {
         );
         workerRef.current = worker;
         const engine = new WebWorkerMLCEngine(worker, {
-          initProgressCallback: (report: { progress: number }) => {
+          initProgressCallback: (report: { progress: number; text: string }) => {
             if (loadingModelRef.current) {
               setLoadProgress((prev) => ({
                 ...prev,
                 [loadingModelRef.current!]: Math.round(report.progress * 100),
+              }));
+              setLoadStatus((prev) => ({
+                ...prev,
+                [loadingModelRef.current!]: report.text,
               }));
             }
           },
@@ -99,6 +106,7 @@ export function useWebLLM() {
         );
       } finally {
         loadingModelRef.current = null;
+        setLoadStatus((prev) => ({ ...prev, [modelId]: "" }));
       }
     },
     []
@@ -189,11 +197,15 @@ export function useWebLLM() {
     workerRef.current = worker;
 
     const engine = new WebWorkerMLCEngine(worker, {
-      initProgressCallback: (report: { progress: number }) => {
+      initProgressCallback: (report: { progress: number; text: string }) => {
         if (loadingModelRef.current) {
           setLoadProgress((prev) => ({
             ...prev,
             [loadingModelRef.current!]: Math.round(report.progress * 100),
+          }));
+          setLoadStatus((prev) => ({
+            ...prev,
+            [loadingModelRef.current!]: report.text,
           }));
         }
       },
@@ -216,6 +228,7 @@ export function useWebLLM() {
         );
       } finally {
         loadingModelRef.current = null;
+        setLoadStatus((prev) => ({ ...prev, [modelId]: "" }));
       }
     }
 
@@ -378,6 +391,7 @@ export function useWebLLM() {
     engineReady,
     modelStatus,
     loadProgress,
+    loadStatus,
     isGenerating,
     results,
     error,
