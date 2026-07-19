@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import * as webllm from "@mlc-ai/web-llm";
+import {
+  WebWorkerMLCEngine,
+  prebuiltAppConfig,
+  type AppConfig,
+} from "@mlc-ai/web-llm";
 import { MODEL_IDS, MODELS } from "@/app/lib/models";
 import { ModelStatus, GenerationResult } from "@/app/lib/types";
 
+const appConfig: AppConfig = { ...prebuiltAppConfig, cacheBackend: "indexeddb" };
+
 export function useWebLLM() {
-  const engineRef = useRef<webllm.WebWorkerMLCEngine | null>(null);
+  const engineRef = useRef<WebWorkerMLCEngine | null>(null);
   const loadingModelRef = useRef<string | null>(null);
   const loadedModelsRef = useRef<Set<string>>(new Set());
   const [engineReady, setEngineReady] = useState(false);
@@ -37,8 +43,8 @@ export function useWebLLM() {
           { type: "module" }
         );
         workerRef.current = worker;
-        const engine = new webllm.WebWorkerMLCEngine(worker, {
-          initProgressCallback: (report: webllm.InitProgressReport) => {
+        const engine = new WebWorkerMLCEngine(worker, {
+          initProgressCallback: (report: { progress: number }) => {
             if (loadingModelRef.current) {
               setLoadProgress((prev) => ({
                 ...prev,
@@ -46,6 +52,7 @@ export function useWebLLM() {
               }));
             }
           },
+          appConfig,
         });
         engineRef.current = engine;
         setEngineReady(true);
@@ -171,8 +178,8 @@ export function useWebLLM() {
     );
     workerRef.current = worker;
 
-    const engine = new webllm.WebWorkerMLCEngine(worker, {
-      initProgressCallback: (report: webllm.InitProgressReport) => {
+    const engine = new WebWorkerMLCEngine(worker, {
+      initProgressCallback: (report: { progress: number }) => {
         if (loadingModelRef.current) {
           setLoadProgress((prev) => ({
             ...prev,
@@ -180,6 +187,7 @@ export function useWebLLM() {
           }));
         }
       },
+      appConfig,
     });
     engineRef.current = engine;
     setEngineReady(true);
@@ -223,9 +231,9 @@ export function useWebLLM() {
 
       const engine = engineRef.current;
 
-      const runModel = async (modelId: string, activeEngine?: webllm.WebWorkerMLCEngine) => {
+      const runModel = async (modelId: string, activeEngine?: WebWorkerMLCEngine) => {
         const currentEngine = activeEngine ?? engine;
-        const request: webllm.ChatCompletionRequest = {
+        const request: import("@mlc-ai/web-llm").ChatCompletionRequest = {
           stream: true,
           stream_options: { include_usage: true },
           messages: [{ role: "user", content: prompt }],
