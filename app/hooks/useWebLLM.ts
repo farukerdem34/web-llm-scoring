@@ -36,6 +36,7 @@ export function useWebLLM() {
           new URL("../lib/webllm-worker.ts", import.meta.url),
           { type: "module" }
         );
+        workerRef.current = worker;
         const engine = new webllm.WebWorkerMLCEngine(worker, {
           initProgressCallback: (report: webllm.InitProgressReport) => {
             if (loadingModelRef.current) {
@@ -55,6 +56,12 @@ export function useWebLLM() {
       }
     };
     initEngine();
+    return () => {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+        workerRef.current = null;
+      }
+    };
   }, []);
 
   const loadModel = useCallback(
@@ -127,6 +134,75 @@ export function useWebLLM() {
   );
 
   const cancelGenerationRef = useRef(false);
+  const deviceLostRetryRef = useRef(false);
+  const workerRef = useRef<Worker | null>(null);
+
+  const isDeviceLostError = useCallback((err: unknown): boolean => {
+    if (!(err instanceof Error)) return false;
+    const msg = err.message.toLowerCase();
+    const name = err.name?.toLowerCase() ?? "";
+    return (
+      name.includes("gpudevlost") ||
+      name.includes("device") && name.includes("lost") ||
+      msg.includes("device") && (msg.includes("lost") || msg.includes("removed")) ||
+      msg.includes("webgpu device") ||
+      msg.includes("gpu device")
+    );
+  }, []);
+
+  const reinitializeEngine = useCallback(async () => {
+    setError("WebGPU device lost. Reinitializing engine...");
+
+    if (workerRef.current) {
+      workerRef.current.terminate();
+      workerRef.current = null;
+    }
+    engineRef.current = null;
+    setEngineReady(false);
+
+    for (const id of loadedModelsRef.current) {
+      setModelStatus((prev) => ({ ...prev, [id]: "loading" }));
+      setLoadProgress((prev) => ({ ...prev, [id]: 0 }));
+    }
+
+    const worker = new Worker(
+      new URL("../lib/webllm-worker.ts", import.meta.url),
+      { type: "module" }
+    );
+    workerRef.current = worker;
+
+    const engine = new webllm.WebWorkerMLCEngine(worker, {
+      initProgressCallback: (report: webllm.InitProgressReport) => {
+        if (loadingModelRef.current) {
+          setLoadProgress((prev) => ({
+            ...prev,
+            [loadingModelRef.current!]: Math.round(report.progress * 100),
+          }));
+        }
+      },
+    });
+    engineRef.current = engine;
+    setEngineReady(true);
+
+    const modelsToReload = Array.from(loadedModelsRef.current);
+    for (const modelId of modelsToReload) {
+      loadingModelRef.current = modelId;
+      try {
+        await engine.reload(modelId);
+        setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
+      } catch {
+        loadedModelsRef.current.delete(modelId);
+        setModelStatus((prev) => ({ ...prev, [modelId]: "error" }));
+        setError(
+          `Failed to reload ${MODELS[modelId]?.name ?? modelId} after device loss`
+        );
+      } finally {
+        loadingModelRef.current = null;
+      }
+    }
+
+    setError("Engine reinitialized. Retrying generation...");
+  }, []);
 
   const generate = useCallback(
     async (prompt: string, modelIds: string[]) => {
@@ -134,6 +210,7 @@ export function useWebLLM() {
 
       setIsGenerating(true);
       cancelGenerationRef.current = false;
+      deviceLostRetryRef.current = false;
       setError(null);
 
       setResults((prev) => {
@@ -204,6 +281,31 @@ export function useWebLLM() {
             }
           }
         } catch (err) {
+          if (isDeviceLostError(err) && !deviceLostRetryRef.current) {
+            deviceLostRetryRef.current = true;
+            try {
+              await reinitializeEngine();
+              setResults((prev) => {
+                const next = { ...prev };
+                for (const id of modelIds) {
+                  next[id] = { ...createEmptyResult(), isStreaming: true };
+                }
+                return next;
+              });
+              await engine.resetChat();
+              await Promise.all(modelIds.map(runModel));
+              return;
+            } catch {
+              setResults((prev) => ({
+                ...prev,
+                [modelId]: {
+                  ...prev[modelId],
+                  text: `Error: Recovery failed after device loss. Please refresh the page.`,
+                  isStreaming: false,
+                },
+              }));
+            }
+          }
           setResults((prev) => ({
             ...prev,
             [modelId]: {
@@ -220,7 +322,7 @@ export function useWebLLM() {
       await Promise.all(modelIds.map(runModel));
       setIsGenerating(false);
     },
-    []
+    [isDeviceLostError, reinitializeEngine]
   );
 
   const cancelGeneration = useCallback(() => {
