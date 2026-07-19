@@ -23,11 +23,3 @@ export interface GenerationResult {
   isStreaming: boolean;
 }
 
-export interface AppState {
-  selectedModels: string[];
-  modelStatus: Record<string, ModelStatus>;
-  loadProgress: Record<string, number>;
-  isGenerating: boolean;
-  results: Record<string, GenerationResult>;
-  error: string | null;
-}
