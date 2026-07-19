@@ -11,6 +11,21 @@ import { ModelStatus, GenerationResult, InferenceConfig } from "@/app/lib/types"
 
 const appConfig: AppConfig = { ...prebuiltAppConfig, cacheBackend: "indexeddb" };
 
+function describeError(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const msg = err.message.toLowerCase();
+  if (msg.includes("out of memory") || msg.includes("insufficient memory")) {
+    return "GPU ran out of memory. Close other GPU-heavy tabs or try a smaller model.";
+  }
+  if (msg.includes("webgpu") && msg.includes("not supported")) {
+    return "WebGPU is not supported in this browser. Use Chrome 113+ or Edge 113+.";
+  }
+  if (msg.includes("model") && (msg.includes("not found") || msg.includes("not loaded"))) {
+    return `${err.message} — make sure the model finished loading before sending a message.`;
+  }
+  return err.message;
+}
+
 export function useWebLLM() {
   const engineRef = useRef<WebWorkerMLCEngine | null>(null);
   const loadingModelRef = useRef<string | null>(null);
@@ -75,7 +90,7 @@ export function useWebLLM() {
         setEngineReady(true);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to initialize engine"
+          `Could not initialize WebGPU engine: ${describeError(err)}`
         );
       }
     };
@@ -131,17 +146,14 @@ export function useWebLLM() {
           
           // If the new model specifically failed, throw to show error
           if (!loadedModelsRef.current.has(modelId)) {
-            throw new Error(`Failed to load ${MODELS[modelId]?.name}: insufficient GPU memory`);
+            throw new Error(`Insufficient GPU memory to load ${MODELS[modelId]?.name}. Try unloading other models first.`);
           }
         }
       } catch (err) {
         loadedModelsRef.current.delete(modelId);
         setModelStatus((prev) => ({ ...prev, [modelId]: "error" }));
-        setError(
-          err instanceof Error
-            ? `Failed to load ${MODELS[modelId]?.name}: ${err.message}`
-            : `Failed to load model`
-        );
+        const detail = describeError(err);
+        setError(`Could not load ${MODELS[modelId]?.name ?? modelId}: ${detail}`);
       } finally {
         loadingModelRef.current = null;
         setLoadStatus((prev) => ({ ...prev, [modelId]: "" }));
@@ -190,7 +202,9 @@ export function useWebLLM() {
               } catch {
                 loadedModelsRef.current.delete(id);
                 setModelStatus((prev) => ({ ...prev, [id]: "error" }));
-                setError(`Failed to reload ${MODELS[id]?.name ?? id} after unloading`);
+                setError(
+                  `Could not reload ${MODELS[id]?.name ?? id} after unloading — it may need to be reloaded manually.`
+                );
               }
             }
           }
@@ -201,7 +215,7 @@ export function useWebLLM() {
           setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
         }
         setError(
-          err instanceof Error ? err.message : "Failed to unload model"
+          `Could not unload ${MODELS[modelId]?.name ?? modelId}: ${describeError(err)}`
         );
       }
     },
@@ -278,7 +292,9 @@ export function useWebLLM() {
           loadedModelsRef.current.delete(id);
           setModelStatus((prev) => ({ ...prev, [id]: "error" }));
         }
-        setError("Failed to reload models after device loss");
+        setError(
+          "Could not reload models after device loss. They may need to be loaded manually."
+        );
       } finally {
         loadingModelRef.current = null;
         for (const id of modelsToReload) {
@@ -294,14 +310,33 @@ export function useWebLLM() {
     async (prompt: string, modelIds: string[], config?: InferenceConfig) => {
       if (!engineRef.current || modelIds.length === 0 || !prompt.trim()) return;
 
+      // Only generate for models that are actually loaded and ready
+      const readyModels = modelIds.filter((id) => modelStatus[id] === "ready");
+      const skippedModels = modelIds.filter((id) => modelStatus[id] !== "ready");
+
+      if (readyModels.length === 0) {
+        setError(
+          "No models are ready. Wait for loading to finish before sending a message."
+        );
+        return;
+      }
+
+      if (skippedModels.length > 0) {
+        const skippedNames = skippedModels
+          .map((id) => `${MODELS[id]?.name ?? id} (${modelStatus[id]})`)
+          .join(", ");
+        setError(
+          `Skipping ${skippedNames} — not loaded yet. Generation continues with the remaining model(s).`
+        );
+      }
+
       setIsGenerating(true);
       cancelGenerationRef.current = false;
       deviceLostRetryRef.current = false;
-      setError(null);
 
       setResults((prev) => {
         const next = { ...prev };
-        for (const id of modelIds) {
+        for (const id of readyModels) {
           next[id] = { ...createEmptyResult(), isStreaming: true };
         }
         return next;
@@ -389,13 +424,13 @@ export function useWebLLM() {
               if (!newEngine) throw new Error("Engine reinitialization failed");
               setResults((prev) => {
                 const next = { ...prev };
-                for (const id of modelIds) {
+                for (const id of readyModels) {
                   next[id] = { ...createEmptyResult(), isStreaming: true };
                 }
                 return next;
               });
               // resetChat is now handled per-model inside runModel
-              await Promise.all(modelIds.map((id) => runModel(id, newEngine)));
+              await Promise.all(readyModels.map((id) => runModel(id, newEngine)));
               return;
             } catch {
               setResults((prev) => ({
@@ -413,17 +448,17 @@ export function useWebLLM() {
             ...prev,
             [modelId]: {
               ...prev[modelId],
-              text: `Error: ${err instanceof Error ? err.message : "Generation failed"}`,
+              text: `Error: ${describeError(err)}`,
               isStreaming: false,
             },
           }));
         }
       };
 
-      await Promise.all(modelIds.map((id) => runModel(id)));
+      await Promise.all(readyModels.map((id) => runModel(id)));
       setIsGenerating(false);
     },
-    [isDeviceLostError, reinitializeEngine]
+    [isDeviceLostError, reinitializeEngine, modelStatus]
   );
 
   const cancelGeneration = useCallback(() => {
