@@ -114,6 +114,10 @@ export function useWebLLM() {
           }
         }
       } catch (err) {
+        const remainingModels = Array.from(loadedModelsRef.current);
+        for (const id of remainingModels) {
+          setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
+        }
         setError(
           err instanceof Error ? err.message : "Failed to unload model"
         );
