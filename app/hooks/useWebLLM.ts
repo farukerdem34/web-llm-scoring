@@ -94,10 +94,14 @@ export function useWebLLM() {
       loadingModelRef.current = modelId;
       setModelStatus((prev) => ({ ...prev, [modelId]: "loading" }));
       try {
-        await engineRef.current.reload(modelId, MODELS[modelId]?.chatOptions);
+        // Add the new model, then reload ALL models as an array
         loadedModelsRef.current.add(modelId);
+        const allModelIds = Array.from(loadedModelsRef.current);
+        const allChatOpts = allModelIds.map((id) => MODELS[id]?.chatOptions ?? {});
+        await engineRef.current.reload(allModelIds, allChatOpts);
         setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
       } catch (err) {
+        loadedModelsRef.current.delete(modelId);
         setModelStatus((prev) => ({ ...prev, [modelId]: "error" }));
         setError(
           err instanceof Error
@@ -132,18 +136,14 @@ export function useWebLLM() {
 
         await engineRef.current.unload();
 
-        // Reload each remaining model sequentially to avoid race conditions
+        // Reload all remaining models as a single array call
+        if (remainingModels.length > 0) {
+          const allChatOpts = remainingModels.map((id) => MODELS[id]?.chatOptions ?? {});
+          await engineRef.current.reload(remainingModels, allChatOpts);
+        }
+
         for (const id of remainingModels) {
-          try {
-            await engineRef.current.reload(id, MODELS[id]?.chatOptions);
-            setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
-          } catch {
-            loadedModelsRef.current.delete(id);
-            setModelStatus((prev) => ({ ...prev, [id]: "error" }));
-            setError(
-              `Failed to reload ${MODELS[id]?.name ?? id} after unloading`
-            );
-          }
+          setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
         }
       } catch (err) {
         const remainingModels = Array.from(loadedModelsRef.current);
@@ -215,20 +215,25 @@ export function useWebLLM() {
     setEngineReady(true);
 
     const modelsToReload = Array.from(loadedModelsRef.current);
-    for (const modelId of modelsToReload) {
-      loadingModelRef.current = modelId;
+    if (modelsToReload.length > 0) {
+      loadingModelRef.current = modelsToReload[0];
       try {
-        await engine.reload(modelId, MODELS[modelId]?.chatOptions);
-        setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
+        const allChatOpts = modelsToReload.map((id) => MODELS[id]?.chatOptions ?? {});
+        await engine.reload(modelsToReload, allChatOpts);
+        for (const id of modelsToReload) {
+          setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
+        }
       } catch {
-        loadedModelsRef.current.delete(modelId);
-        setModelStatus((prev) => ({ ...prev, [modelId]: "error" }));
-        setError(
-          `Failed to reload ${MODELS[modelId]?.name ?? modelId} after device loss`
-        );
+        for (const id of modelsToReload) {
+          loadedModelsRef.current.delete(id);
+          setModelStatus((prev) => ({ ...prev, [id]: "error" }));
+        }
+        setError("Failed to reload models after device loss");
       } finally {
         loadingModelRef.current = null;
-        setLoadStatus((prev) => ({ ...prev, [modelId]: "" }));
+        for (const id of modelsToReload) {
+          setLoadStatus((prev) => ({ ...prev, [id]: "" }));
+        }
       }
     }
 
@@ -256,6 +261,15 @@ export function useWebLLM() {
 
       const runModel = async (modelId: string, activeEngine?: WebWorkerMLCEngine) => {
         const currentEngine = activeEngine ?? engine;
+
+        // Reset chat for this specific model (required when multiple models loaded)
+        // resetChat(keepStats?: boolean, modelId?: string)
+        try {
+          await currentEngine.resetChat(false, modelId);
+        } catch {
+          // resetChat may fail if model isn't loaded; continue with generation
+        }
+
         const request: import("@mlc-ai/web-llm").ChatCompletionRequest = {
           stream: true,
           stream_options: { include_usage: true },
@@ -330,7 +344,7 @@ export function useWebLLM() {
                 }
                 return next;
               });
-              await newEngine.resetChat();
+              // resetChat is now handled per-model inside runModel
               await Promise.all(modelIds.map((id) => runModel(id, newEngine)));
               return;
             } catch {
@@ -355,8 +369,6 @@ export function useWebLLM() {
           }));
         }
       };
-
-      await engine.resetChat();
 
       await Promise.all(modelIds.map((id) => runModel(id)));
       setIsGenerating(false);
