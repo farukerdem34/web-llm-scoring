@@ -17,7 +17,7 @@ Browser-based Gemma model comparison tool using `@mlc-ai/web-llm` with WebGPU. A
 ```bash
 npm run dev        # Start dev server (http://localhost:3000)
 npm run build      # Production build
-npm run lint       # ESLint (next/core-web-vitals + typescript)
+npm run lint       # ESLint
 ```
 
 No test suite exists yet. Run `npm run lint` before commits.
@@ -29,7 +29,7 @@ No test suite exists yet. Run `npm run lint` before commits.
 - **Models:** Gemma 2B (`gemma-2-2b-it-q4f32_1-MLC`) and 9B (`gemma-2-9b-it-q4f32_1-MLC`)
 - **All components must use `"use client"`** — WebLLM requires browser APIs (WebGPU)
 
-## Key Files (Planned)
+## Key Files
 
 ```
 app/
@@ -59,18 +59,15 @@ Uses `@tailwindcss/postcss` plugin. Configure via `app/globals.css` with `@theme
 
 ## MCP Servers
 
-Two MCP servers configured in `opencode.json`:
+Three MCP servers configured in `.opencode/opencode.json`:
 - **next:** Local Next.js devtools MCP (auto-started)
 - **vercel:** Remote Vercel MCP for deployment tasks
+- **render:** Remote Render MCP for deployment tasks (requires `RENDER_API_KEY` env)
 
 ## Design Spec
 
 Full design: `docs/superpowers/specs/2025-07-19-llm-playground-design.md`
 Implementation plan: `docs/superpowers/plans/2025-07-19-llm-playground.md` (12 tasks)
-
-## Implementation Approach
-
-Executed via **subagent-driven-development** — fresh subagent per task with spec review after each.
 
 ## Gotchas
 
