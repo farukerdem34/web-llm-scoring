@@ -27,6 +27,8 @@ export function useWebLLM() {
     () => Object.fromEntries(MODEL_IDS.map((id) => [id, createEmptyResult()]))
   );
   const [error, setError] = useState<string | null>(null);
+  const [gpuVendor, setGpuVendor] = useState<string | null>(null);
+  const [gpuMaxBufferSize, setGpuMaxBufferSize] = useState<number | null>(null);
 
   useEffect(() => {
     const initEngine = async () => {
@@ -55,6 +57,19 @@ export function useWebLLM() {
           appConfig,
         });
         engineRef.current = engine;
+        try {
+          const vendor = await engine.getGPUVendor();
+          const maxBufferSize = await engine.getMaxStorageBufferBindingSize();
+          setGpuVendor(vendor);
+          setGpuMaxBufferSize(maxBufferSize);
+          if (maxBufferSize < 1_073_741_824) {
+            setError(
+              `GPU buffer size (${(maxBufferSize / 1_073_741_824).toFixed(1)} GB) is below 1 GB. The 9B model may not load.`
+            );
+          }
+        } catch {
+          // GPU info is non-critical; proceed without it
+        }
         setEngineReady(true);
       } catch (err) {
         setError(
@@ -371,6 +386,8 @@ export function useWebLLM() {
     isGenerating,
     results,
     error,
+    gpuVendor,
+    gpuMaxBufferSize,
     loadModel,
     unloadModel,
     generate,

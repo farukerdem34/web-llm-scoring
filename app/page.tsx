@@ -16,6 +16,8 @@ export default function Home() {
     isGenerating,
     results,
     error,
+    gpuVendor,
+    gpuMaxBufferSize,
     loadModel,
     unloadModel,
     generate,
@@ -109,12 +111,24 @@ export default function Home() {
           </div>
         )}
 
-        {/* WebGPU Warning */}
+        {/* WebGPU Banner */}
         {!engineReady && !error && (
           <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950 dark:border-amber-800">
             <p className="text-sm text-amber-700 dark:text-amber-300">
               Initializing WebGPU engine... This may take a moment.
             </p>
+          </div>
+        )}
+
+        {/* GPU Diagnostics */}
+        {engineReady && (
+          <div className="mb-4 flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500">
+            {gpuVendor && <span>GPU: {gpuVendor}</span>}
+            {gpuMaxBufferSize != null && (
+              <span>
+                Buffer: {(gpuMaxBufferSize / 1_073_741_824).toFixed(1)} GB
+              </span>
+            )}
           </div>
         )}
 
