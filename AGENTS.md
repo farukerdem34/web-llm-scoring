@@ -68,6 +68,10 @@ Two MCP servers configured in `opencode.json`:
 Full design: `docs/superpowers/specs/2025-07-19-llm-playground-design.md`
 Implementation plan: `docs/superpowers/plans/2025-07-19-llm-playground.md` (12 tasks)
 
+## Implementation Approach
+
+Executed via **subagent-driven-development** — fresh subagent per task with spec review after each.
+
 ## Gotchas
 
 - Models load on-demand when toggled; first load downloads weights (~1-2GB)
