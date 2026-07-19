@@ -98,8 +98,42 @@ export function useWebLLM() {
         loadedModelsRef.current.add(modelId);
         const allModelIds = Array.from(loadedModelsRef.current);
         const allChatOpts = allModelIds.map((id) => MODELS[id]?.chatOptions ?? {});
-        await engineRef.current.reload(allModelIds, allChatOpts);
-        setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
+        
+        try {
+          // Try array reload first (optimal for multi-model)
+          await engineRef.current.reload(allModelIds, allChatOpts);
+          setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
+        } catch (arrayError) {
+          // Array reload failed (likely GPU memory), try individual reloads
+          console.warn("Array reload failed, trying individual reloads:", arrayError);
+          
+          // First unload everything
+          await engineRef.current.unload();
+          
+          // Then reload models one by one, skipping failures
+          let loadedCount = 0;
+          for (const id of allModelIds) {
+            try {
+              await engineRef.current.reload(id, MODELS[id]?.chatOptions);
+              setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
+              loadedCount++;
+            } catch {
+              // This model can't be loaded, remove from tracking
+              loadedModelsRef.current.delete(id);
+              setModelStatus((prev) => ({ ...prev, [id]: "error" }));
+              console.warn(`Failed to load ${id} individually`);
+            }
+          }
+          
+          if (loadedCount === 0) {
+            throw new Error("Failed to load any models");
+          }
+          
+          // If the new model specifically failed, throw to show error
+          if (!loadedModelsRef.current.has(modelId)) {
+            throw new Error(`Failed to load ${MODELS[modelId]?.name}: insufficient GPU memory`);
+          }
+        }
       } catch (err) {
         loadedModelsRef.current.delete(modelId);
         setModelStatus((prev) => ({ ...prev, [modelId]: "error" }));
@@ -136,14 +170,30 @@ export function useWebLLM() {
 
         await engineRef.current.unload();
 
-        // Reload all remaining models as a single array call
+        // Try to reload all remaining models as array first
         if (remainingModels.length > 0) {
-          const allChatOpts = remainingModels.map((id) => MODELS[id]?.chatOptions ?? {});
-          await engineRef.current.reload(remainingModels, allChatOpts);
-        }
-
-        for (const id of remainingModels) {
-          setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
+          try {
+            const allChatOpts = remainingModels.map((id) => MODELS[id]?.chatOptions ?? {});
+            await engineRef.current.reload(remainingModels, allChatOpts);
+            for (const id of remainingModels) {
+              setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
+            }
+          } catch {
+            // Array reload failed, try individual reloads
+            console.warn("Array reload failed during unload, trying individual reloads");
+            await engineRef.current.unload();
+            
+            for (const id of remainingModels) {
+              try {
+                await engineRef.current.reload(id, MODELS[id]?.chatOptions);
+                setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
+              } catch {
+                loadedModelsRef.current.delete(id);
+                setModelStatus((prev) => ({ ...prev, [id]: "error" }));
+                setError(`Failed to reload ${MODELS[id]?.name ?? id} after unloading`);
+              }
+            }
+          }
         }
       } catch (err) {
         const remainingModels = Array.from(loadedModelsRef.current);

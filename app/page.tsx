@@ -36,19 +36,24 @@ export default function Home() {
     resetSingle,
   } = useConfig();
 
-  const [selectedModels, setSelectedModels] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const hasHydratedRef = useRef(false);
+  const pendingModelsRef = useRef<string[]>([]);
+
+  // Read localStorage once after mount (no setState in effect)
+  useEffect(() => {
+    if (hasHydratedRef.current) return;
+    hasHydratedRef.current = true;
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          pendingModelsRef.current = parsed;
         }
       }
     } catch {}
-    return [];
-  });
+  }, []);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   useEffect(() => {
@@ -75,7 +80,13 @@ export default function Home() {
   const autoLoadRequestedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (engineReady) {
+    // Sync pending models from localStorage after hydration
+    if (hasHydratedRef.current && pendingModelsRef.current.length > 0) {
+      setSelectedModels(pendingModelsRef.current);
+      pendingModelsRef.current = [];
+    }
+
+    if (engineReady && hasHydratedRef.current) {
       for (const modelId of selectedModels) {
         if (
           modelStatus[modelId] === "idle" &&
