@@ -25,17 +25,20 @@ export default function Home() {
     clearError,
   } = useWebLLM();
 
-  const [selectedModels, setSelectedModels] = useState<string[]>(() => {
-    if (typeof window === "undefined") return MODEL_IDS;
+  const [selectedModels, setSelectedModels] = useState<string[]>(MODEL_IDS);
+
+  // Hydrate from localStorage after mount to avoid server/client mismatch
+  useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSelectedModels(parsed);
+        }
       }
     } catch {}
-    return MODEL_IDS;
-  });
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedModels));
