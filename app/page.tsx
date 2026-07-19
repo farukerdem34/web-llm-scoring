@@ -5,7 +5,6 @@ import { useWebLLM } from "./hooks/useWebLLM";
 import { ModelSelector } from "./components/ModelSelector";
 import { PromptInput } from "./components/PromptInput";
 import { ComparisonView } from "./components/ComparisonView";
-import { MODEL_IDS } from "./lib/models";
 
 const STORAGE_KEY = "llm-playground-selected-models";
 
@@ -25,7 +24,7 @@ export default function Home() {
     clearError,
   } = useWebLLM();
 
-  const [selectedModels, setSelectedModels] = useState<string[]>(MODEL_IDS);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
 
   // Hydrate from localStorage after mount to avoid server/client mismatch
   useEffect(() => {
@@ -52,7 +51,6 @@ export default function Home() {
     setSelectedModels((prev) => {
       const isSelected = prev.includes(modelId);
       if (isSelected) {
-        if (prev.length === 1) return prev;
         unloadModel(modelId);
         return prev.filter((id) => id !== modelId);
       } else {
