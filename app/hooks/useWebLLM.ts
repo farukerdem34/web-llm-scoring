@@ -8,6 +8,7 @@ import { ModelStatus, GenerationResult } from "@/app/lib/types";
 export function useWebLLM() {
   const engineRef = useRef<webllm.WebWorkerMLCEngine | null>(null);
   const loadingModelRef = useRef<string | null>(null);
+  const loadedModelsRef = useRef<Set<string>>(new Set());
   const [engineReady, setEngineReady] = useState(false);
   const [modelStatus, setModelStatus] = useState<Record<string, ModelStatus>>(
     () => Object.fromEntries(MODEL_IDS.map((id) => [id, "idle"]))
@@ -63,6 +64,7 @@ export function useWebLLM() {
       setModelStatus((prev) => ({ ...prev, [modelId]: "loading" }));
       try {
         await engineRef.current.reload(modelId);
+        loadedModelsRef.current.add(modelId);
         setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
       } catch (err) {
         setModelStatus((prev) => ({ ...prev, [modelId]: "error" }));
@@ -82,11 +84,35 @@ export function useWebLLM() {
     async (modelId: string) => {
       if (!engineRef.current) return;
       try {
-        // NOTE: WebLLM's unload() unloads all models from the engine.
-        // We only reset the targeted model's state since that's what the caller requested.
-        await engineRef.current.unload();
+        // Mark the target model as idle immediately for responsive UI
+        loadedModelsRef.current.delete(modelId);
         setModelStatus((prev) => ({ ...prev, [modelId]: "idle" }));
         setLoadProgress((prev) => ({ ...prev, [modelId]: 0 }));
+
+        // WebLLM's unload() unloads ALL models from the engine.
+        // We must reload every remaining model that should still be loaded.
+        const remainingModels = Array.from(loadedModelsRef.current);
+
+        // Mark remaining models as reloading so the UI reflects the brief downtime
+        for (const id of remainingModels) {
+          setModelStatus((prev) => ({ ...prev, [id]: "loading" }));
+        }
+
+        await engineRef.current.unload();
+
+        // Reload each remaining model sequentially to avoid race conditions
+        for (const id of remainingModels) {
+          try {
+            await engineRef.current.reload(id);
+            setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
+          } catch {
+            loadedModelsRef.current.delete(id);
+            setModelStatus((prev) => ({ ...prev, [id]: "error" }));
+            setError(
+              `Failed to reload ${MODELS[id]?.name ?? id} after unloading`
+            );
+          }
+        }
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to unload model"
