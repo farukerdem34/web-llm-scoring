@@ -9,6 +9,7 @@ export interface InferenceConfig {
   presence_penalty: number;
   repetition_penalty: number;
   ignore_eos: boolean;
+  system_prompt: string;
 }
 
 export const DEFAULT_INFERENCE_CONFIG: InferenceConfig = {
@@ -19,6 +20,7 @@ export const DEFAULT_INFERENCE_CONFIG: InferenceConfig = {
   presence_penalty: 0,
   repetition_penalty: 1.0,
   ignore_eos: false,
+  system_prompt: "",
 };
 
 export interface ModelConfig {

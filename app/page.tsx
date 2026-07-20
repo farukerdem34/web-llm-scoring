@@ -7,6 +7,7 @@ import { ModelSelector } from "./components/ModelSelector";
 import { PromptInput } from "./components/PromptInput";
 import { ComparisonView } from "./components/ComparisonView";
 import { ConfigSidebar } from "./components/ConfigSidebar";
+import { SystemPromptInput } from "./components/SystemPromptInput";
 import { useAuth } from "./hooks/useAuth";
 import { AuthScreen } from "./components/AuthScreen";
 import { HealthIndicator } from "./components/HealthIndicator";
@@ -307,6 +308,15 @@ export default function Home() {
                 loadProgress={loadProgress}
                 loadStatus={loadStatus}
                 onToggle={handleToggle}
+              />
+            </section>
+
+            {/* System Prompt */}
+            <section className="mb-4 stagger-child">
+              <SystemPromptInput
+                value={config.system_prompt}
+                onChange={(v) => updateConfig("system_prompt", v)}
+                disabled={isGenerating}
               />
             </section>
 

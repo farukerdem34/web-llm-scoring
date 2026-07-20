@@ -252,10 +252,16 @@ export function useWebLLM() {
           // resetChat may fail if model isn't loaded; continue
         }
 
+        const messages: import("@mlc-ai/web-llm").ChatCompletionMessageParam[] = [];
+        if (config?.system_prompt?.trim()) {
+          messages.push({ role: "system", content: config.system_prompt.trim() });
+        }
+        messages.push({ role: "user", content: prompt });
+
         const request: import("@mlc-ai/web-llm").ChatCompletionRequest = {
           stream: true,
           stream_options: { include_usage: true },
-          messages: [{ role: "user", content: prompt }],
+          messages,
           model: modelId,
           max_tokens: config?.max_tokens ?? MODELS[modelId]?.defaultParams.max_tokens ?? 200,
           temperature: config?.temperature ?? MODELS[modelId]?.defaultParams.temperature ?? 0.7,
