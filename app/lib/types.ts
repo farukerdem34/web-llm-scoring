@@ -48,3 +48,39 @@ export interface GenerationResult {
   isStreaming: boolean;
 }
 
+// Auth types
+export interface AuthUser {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  status: "active" | "inactive" | "suspended";
+  created_at?: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: AuthUser;
+}
+
+export interface RefreshResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+export interface ApiError {
+  error: string;
+  message: string;
+  code: number;
+}
+
