@@ -7,7 +7,7 @@ import {
   type AppConfig,
 } from "@mlc-ai/web-llm";
 import { MODEL_IDS, MODELS } from "@/app/lib/models";
-import { ModelStatus, GenerationResult, InferenceConfig } from "@/app/lib/types";
+import { ModelStatus, GenerationResult, InferenceConfig, ModelEngineEntry } from "@/app/lib/types";
 
 const appConfig: AppConfig = { ...prebuiltAppConfig, cacheBackend: "indexeddb" };
 
@@ -27,9 +27,8 @@ function describeError(err: unknown): string {
 }
 
 export function useWebLLM() {
-  const engineRef = useRef<WebWorkerMLCEngine | null>(null);
+  const enginesRef = useRef<Map<string, ModelEngineEntry>>(new Map());
   const loadingModelRef = useRef<string | null>(null);
-  const loadedModelsRef = useRef<Set<string>>(new Set());
   const [engineReady, setEngineReady] = useState(false);
   const [modelStatus, setModelStatus] = useState<Record<string, ModelStatus>>(
     () => Object.fromEntries(MODEL_IDS.map((id) => [id, "idle"]))
@@ -49,108 +48,71 @@ export function useWebLLM() {
   const [gpuMaxBufferSize, setGpuMaxBufferSize] = useState<number | null>(null);
 
   useEffect(() => {
-    const initEngine = async () => {
-      const gpu = (navigator as Navigator & { gpu?: unknown }).gpu;
-      if (!gpu) {
-        setError(
-          "WebGPU is not supported in this browser. Please use a WebGPU-compatible browser (Chrome 113+, Edge 113+)."
-        );
-        return;
-      }
-      try {
-        const worker = new Worker(
-          new URL("../lib/webllm-worker.ts", import.meta.url),
-          { type: "module" }
-        );
-        workerRef.current = worker;
-        const engine = new WebWorkerMLCEngine(worker, {
-          initProgressCallback: (report: { progress: number; text: string }) => {
-            if (loadingModelRef.current) {
-              setLoadProgress((prev) => ({
-                ...prev,
-                [loadingModelRef.current!]: Math.round(report.progress * 100),
-              }));
-              setLoadStatus((prev) => ({
-                ...prev,
-                [loadingModelRef.current!]: report.text,
-              }));
-            }
-          },
-          appConfig,
-        });
-        engineRef.current = engine;
-        try {
-          const vendor = await engine.getGPUVendor();
-          const maxBufferSize = await engine.getMaxStorageBufferBindingSize();
-          setGpuVendor(vendor);
-          setGpuMaxBufferSize(maxBufferSize);
-        } catch {
-          // GPU info is non-critical; proceed without it
-        }
-        setEngineReady(true);
-      } catch (err) {
-        setError(
-          `Could not initialize WebGPU engine: ${describeError(err)}`
-        );
-      }
-    };
-    initEngine();
+    const gpu = (navigator as Navigator & { gpu?: unknown }).gpu;
+    if (!gpu) {
+      setError(
+        "WebGPU is not supported in this browser. Please use a WebGPU-compatible browser (Chrome 113+, Edge 113+)."
+      );
+      return;
+    }
+    setEngineReady(true);
+
+    const engines = enginesRef.current;
     return () => {
-      if (workerRef.current) {
-        workerRef.current.terminate();
-        workerRef.current = null;
+      for (const entry of engines.values()) {
+        entry.worker.terminate();
       }
+      engines.clear();
     };
   }, []);
 
   const loadModel = useCallback(
     async (modelId: string) => {
-      if (!engineRef.current) return;
+      if (enginesRef.current.has(modelId)) return;
+
       loadingModelRef.current = modelId;
       setModelStatus((prev) => ({ ...prev, [modelId]: "loading" }));
+
       try {
-        // Add the new model, then reload ALL models as an array
-        loadedModelsRef.current.add(modelId);
-        const allModelIds = Array.from(loadedModelsRef.current);
-        const allChatOpts = allModelIds.map((id) => MODELS[id]?.chatOptions ?? {});
-        
-        try {
-          // Try array reload first (optimal for multi-model)
-          await engineRef.current.reload(allModelIds, allChatOpts);
-          setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
-        } catch (arrayError) {
-          // Array reload failed (likely GPU memory), try individual reloads
-          console.warn("Array reload failed, trying individual reloads:", arrayError);
-          
-          // First unload everything
-          await engineRef.current.unload();
-          
-          // Then reload models one by one, skipping failures
-          let loadedCount = 0;
-          for (const id of allModelIds) {
-            try {
-              await engineRef.current.reload(id, MODELS[id]?.chatOptions);
-              setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
-              loadedCount++;
-            } catch {
-              // This model can't be loaded, remove from tracking
-              loadedModelsRef.current.delete(id);
-              setModelStatus((prev) => ({ ...prev, [id]: "error" }));
-              console.warn(`Failed to load ${id} individually`);
+        const worker = new Worker(
+          new URL("../lib/webllm-worker.ts", import.meta.url),
+          { type: "module" }
+        );
+
+        const engine = new WebWorkerMLCEngine(worker, {
+          initProgressCallback: (report: { progress: number; text: string }) => {
+            if (loadingModelRef.current === modelId) {
+              setLoadProgress((prev) => ({
+                ...prev,
+                [modelId]: Math.round(report.progress * 100),
+              }));
+              setLoadStatus((prev) => ({
+                ...prev,
+                [modelId]: report.text,
+              }));
             }
-          }
-          
-          if (loadedCount === 0) {
-            throw new Error("Failed to load any models");
-          }
-          
-          // If the new model specifically failed, throw to show error
-          if (!loadedModelsRef.current.has(modelId)) {
-            throw new Error(`Insufficient GPU memory to load ${MODELS[modelId]?.name}. Try unloading other models first.`);
+          },
+          appConfig,
+        });
+
+        await engine.reload(modelId, MODELS[modelId]?.chatOptions);
+
+        enginesRef.current.set(modelId, { worker, engine });
+        setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
+
+        // Collect GPU info on first model load
+        if (!gpuVendor) {
+          try {
+            const vendor = await engine.getGPUVendor();
+            const maxBufferSize = await engine.getMaxStorageBufferBindingSize();
+            setGpuVendor(vendor);
+            setGpuMaxBufferSize(maxBufferSize);
+          } catch {
+            // GPU info is non-critical
           }
         }
       } catch (err) {
-        loadedModelsRef.current.delete(modelId);
+        enginesRef.current.delete(modelId);
         setModelStatus((prev) => ({ ...prev, [modelId]: "error" }));
         const detail = describeError(err);
         setError(`Could not load ${MODELS[modelId]?.name ?? modelId}: ${detail}`);
@@ -159,72 +121,31 @@ export function useWebLLM() {
         setLoadStatus((prev) => ({ ...prev, [modelId]: "" }));
       }
     },
-    []
+    [gpuVendor]
   );
 
   const unloadModel = useCallback(
     async (modelId: string) => {
-      if (!engineRef.current) return;
+      const entry = enginesRef.current.get(modelId);
+      if (!entry) return;
+
+      setModelStatus((prev) => ({ ...prev, [modelId]: "idle" }));
+      setLoadProgress((prev) => ({ ...prev, [modelId]: 0 }));
+
       try {
-        // Mark the target model as idle immediately for responsive UI
-        loadedModelsRef.current.delete(modelId);
-        setModelStatus((prev) => ({ ...prev, [modelId]: "idle" }));
-        setLoadProgress((prev) => ({ ...prev, [modelId]: 0 }));
-
-        // WebLLM's unload() unloads ALL models from the engine.
-        // We must reload every remaining model that should still be loaded.
-        const remainingModels = Array.from(loadedModelsRef.current);
-
-        // Mark remaining models as reloading so the UI reflects the brief downtime
-        for (const id of remainingModels) {
-          setModelStatus((prev) => ({ ...prev, [id]: "loading" }));
-        }
-
-        await engineRef.current.unload();
-
-        // Try to reload all remaining models as array first
-        if (remainingModels.length > 0) {
-          try {
-            const allChatOpts = remainingModels.map((id) => MODELS[id]?.chatOptions ?? {});
-            await engineRef.current.reload(remainingModels, allChatOpts);
-            for (const id of remainingModels) {
-              setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
-            }
-          } catch {
-            // Array reload failed, try individual reloads
-            console.warn("Array reload failed during unload, trying individual reloads");
-            await engineRef.current.unload();
-            
-            for (const id of remainingModels) {
-              try {
-                await engineRef.current.reload(id, MODELS[id]?.chatOptions);
-                setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
-              } catch {
-                loadedModelsRef.current.delete(id);
-                setModelStatus((prev) => ({ ...prev, [id]: "error" }));
-                setError(
-                  `Could not reload ${MODELS[id]?.name ?? id} after unloading — it may need to be reloaded manually.`
-                );
-              }
-            }
-          }
-        }
-      } catch (err) {
-        const remainingModels = Array.from(loadedModelsRef.current);
-        for (const id of remainingModels) {
-          setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
-        }
-        setError(
-          `Could not unload ${MODELS[modelId]?.name ?? modelId}: ${describeError(err)}`
-        );
+        await entry.engine.unload();
+      } catch {
+        // Unload may fail; proceed with cleanup anyway
       }
+
+      entry.worker.terminate();
+      enginesRef.current.delete(modelId);
     },
     []
   );
 
   const cancelGenerationRef = useRef(false);
   const deviceLostRetryRef = useRef(false);
-  const workerRef = useRef<Worker | null>(null);
 
   const isDeviceLostError = useCallback((err: unknown): boolean => {
     if (!(err instanceof Error)) return false;
@@ -239,80 +160,57 @@ export function useWebLLM() {
     );
   }, []);
 
-  const reinitializeEngine = useCallback(async () => {
-    setError("WebGPU device lost. Reinitializing engine...");
-
-    if (workerRef.current) {
-      workerRef.current.terminate();
-      workerRef.current = null;
+  const reinitializeSingleEngine = useCallback(async (modelId: string) => {
+    const oldEntry = enginesRef.current.get(modelId);
+    if (oldEntry) {
+      oldEntry.worker.terminate();
+      enginesRef.current.delete(modelId);
     }
-    engineRef.current = null;
-    setEngineReady(false);
 
-    for (const id of loadedModelsRef.current) {
-      setModelStatus((prev) => ({ ...prev, [id]: "loading" }));
-      setLoadProgress((prev) => ({ ...prev, [id]: 0 }));
-    }
+    setModelStatus((prev) => ({ ...prev, [modelId]: "loading" }));
+    setLoadProgress((prev) => ({ ...prev, [modelId]: 0 }));
 
     const worker = new Worker(
       new URL("../lib/webllm-worker.ts", import.meta.url),
       { type: "module" }
     );
-    workerRef.current = worker;
 
     const engine = new WebWorkerMLCEngine(worker, {
       initProgressCallback: (report: { progress: number; text: string }) => {
-        if (loadingModelRef.current) {
+        if (loadingModelRef.current === modelId) {
           setLoadProgress((prev) => ({
             ...prev,
-            [loadingModelRef.current!]: Math.round(report.progress * 100),
+            [modelId]: Math.round(report.progress * 100),
           }));
           setLoadStatus((prev) => ({
             ...prev,
-            [loadingModelRef.current!]: report.text,
+            [modelId]: report.text,
           }));
         }
       },
       appConfig,
     });
-    engineRef.current = engine;
-    setEngineReady(true);
 
-    const modelsToReload = Array.from(loadedModelsRef.current);
-    if (modelsToReload.length > 0) {
-      loadingModelRef.current = modelsToReload[0];
-      try {
-        const allChatOpts = modelsToReload.map((id) => MODELS[id]?.chatOptions ?? {});
-        await engine.reload(modelsToReload, allChatOpts);
-        for (const id of modelsToReload) {
-          setModelStatus((prev) => ({ ...prev, [id]: "ready" }));
-        }
-      } catch {
-        for (const id of modelsToReload) {
-          loadedModelsRef.current.delete(id);
-          setModelStatus((prev) => ({ ...prev, [id]: "error" }));
-        }
-        setError(
-          "Could not reload models after device loss. They may need to be loaded manually."
-        );
-      } finally {
-        loadingModelRef.current = null;
-        for (const id of modelsToReload) {
-          setLoadStatus((prev) => ({ ...prev, [id]: "" }));
-        }
-      }
-    }
-
-    setError("Engine reinitialized. Retrying generation...");
+    loadingModelRef.current = modelId;
+    await engine.reload(modelId, MODELS[modelId]?.chatOptions);
+    enginesRef.current.set(modelId, { worker, engine });
+    setModelStatus((prev) => ({ ...prev, [modelId]: "ready" }));
+    loadingModelRef.current = null;
+    setLoadStatus((prev) => ({ ...prev, [modelId]: "" }));
   }, []);
 
   const generate = useCallback(
     async (prompt: string, modelIds: string[], config?: InferenceConfig) => {
-      if (!engineRef.current || modelIds.length === 0 || !prompt.trim()) return;
+      if (modelIds.length === 0 || !prompt.trim()) return;
 
-      // Only generate for models that are actually loaded and ready
-      const readyModels = modelIds.filter((id) => modelStatus[id] === "ready");
-      const skippedModels = modelIds.filter((id) => modelStatus[id] !== "ready");
+      const readyModels = modelIds.filter((id) => {
+        const status = modelStatus[id];
+        return status === "ready" && enginesRef.current.has(id);
+      });
+      const skippedModels = modelIds.filter((id) => {
+        const status = modelStatus[id];
+        return status !== "ready" || !enginesRef.current.has(id);
+      });
 
       if (readyModels.length === 0) {
         setError(
@@ -342,17 +240,16 @@ export function useWebLLM() {
         return next;
       });
 
-      const engine = engineRef.current;
+      const runModel = async (modelId: string) => {
+        const entry = enginesRef.current.get(modelId);
+        if (!entry) return;
 
-      const runModel = async (modelId: string, activeEngine?: WebWorkerMLCEngine) => {
-        const currentEngine = activeEngine ?? engine;
+        const engine = entry.engine;
 
-        // Reset chat for this specific model (required when multiple models loaded)
-        // resetChat(keepStats?: boolean, modelId?: string)
         try {
-          await currentEngine.resetChat(false, modelId);
+          await engine.resetChat(false, modelId);
         } catch {
-          // resetChat may fail if model isn't loaded; continue with generation
+          // resetChat may fail if model isn't loaded; continue
         }
 
         const request: import("@mlc-ai/web-llm").ChatCompletionRequest = {
@@ -373,7 +270,7 @@ export function useWebLLM() {
         let firstTokenCaptured = false;
 
         try {
-          const stream = await currentEngine.chat.completions.create(request);
+          const stream = await engine.chat.completions.create(request);
 
           for await (const chunk of stream) {
             if (cancelGenerationRef.current) break;
@@ -419,18 +316,12 @@ export function useWebLLM() {
           if (isDeviceLostError(err) && !deviceLostRetryRef.current) {
             deviceLostRetryRef.current = true;
             try {
-              await reinitializeEngine();
-              const newEngine = engineRef.current;
-              if (!newEngine) throw new Error("Engine reinitialization failed");
-              setResults((prev) => {
-                const next = { ...prev };
-                for (const id of readyModels) {
-                  next[id] = { ...createEmptyResult(), isStreaming: true };
-                }
-                return next;
-              });
-              // resetChat is now handled per-model inside runModel
-              await Promise.all(readyModels.map((id) => runModel(id, newEngine)));
+              await reinitializeSingleEngine(modelId);
+              setResults((prev) => ({
+                ...prev,
+                [modelId]: { ...createEmptyResult(), isStreaming: true },
+              }));
+              await runModel(modelId);
               return;
             } catch {
               setResults((prev) => ({
@@ -458,13 +349,17 @@ export function useWebLLM() {
       await Promise.all(readyModels.map((id) => runModel(id)));
       setIsGenerating(false);
     },
-    [isDeviceLostError, reinitializeEngine, modelStatus]
+    [isDeviceLostError, reinitializeSingleEngine, modelStatus]
   );
 
   const cancelGeneration = useCallback(() => {
     cancelGenerationRef.current = true;
-    if (engineRef.current) {
-      engineRef.current.interruptGenerate();
+    for (const entry of enginesRef.current.values()) {
+      try {
+        entry.engine.interruptGenerate();
+      } catch {
+        // Ignore errors on interrupt
+      }
     }
     setIsGenerating(false);
     setResults((prev) => {
