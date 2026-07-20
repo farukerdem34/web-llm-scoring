@@ -12,11 +12,9 @@ export function AuthScreen() {
   const [tab, setTab] = useState<Tab>("signin");
   const [submitting, setSubmitting] = useState(false);
 
-  // Sign In fields
   const [siEmail, setSiEmail] = useState("");
   const [siPassword, setSiPassword] = useState("");
 
-  // Sign Up fields
   const [suEmail, setSuEmail] = useState("");
   const [suPassword, setSuPassword] = useState("");
   const [suFirstName, setSuFirstName] = useState("");
@@ -54,22 +52,22 @@ export function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--sand-50)] px-4">
       <div className="w-full max-w-md">
         {/* Branding */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-semibold tracking-tight text-[var(--ink)]">
             LLM Playground
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Compare Gemma models side-by-side with browser-based inference
+          <p className="mt-2 text-sm text-[var(--ink-muted)]">
+            Compare models side-by-side with browser-based inference
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm">
+        <div className="bg-white border border-[var(--sand-200)] rounded-xl shadow-sm">
           {/* Tabs */}
-          <div className="flex border-b border-slate-200 dark:border-slate-700">
+          <div className="flex border-b border-[var(--sand-200)]">
             {(["signin", "signup"] as const).map((t) => (
               <button
                 key={t}
@@ -77,10 +75,10 @@ export function AuthScreen() {
                   setTab(t);
                   clearError();
                 }}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                className={`flex-1 py-3.5 text-sm font-medium transition-colors cursor-pointer ${
                   tab === t
-                    ? "text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400"
-                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    ? "text-[var(--terracotta)] border-b-2 border-[var(--terracotta)]"
+                    : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
                 }`}
               >
                 {t === "signin" ? "Sign In" : "Sign Up"}
@@ -90,15 +88,13 @@ export function AuthScreen() {
 
           {/* Error */}
           {error && (
-            <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-950 dark:border-red-800">
-              <p className="text-sm text-red-700 dark:text-red-300">
-                {error}
-              </p>
+            <div className="mx-5 mt-5 p-3 bg-[var(--terracotta-light)] border border-[var(--terracotta)]/20 rounded-lg">
+              <p className="text-sm text-[var(--terracotta-dark)]">{error}</p>
             </div>
           )}
 
           {/* Forms */}
-          <div className="p-4">
+          <div className="p-5">
             {tab === "signin" ? (
               <form onSubmit={handleSignIn} className="space-y-4">
                 <Field
@@ -156,14 +152,14 @@ export function AuthScreen() {
         </div>
 
         {/* Health Status */}
-        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+        <div className="mt-5 flex items-center justify-center gap-2 text-xs text-[var(--ink-faint)]">
           <span
-            className={`w-2 h-2 rounded-full ${
+            className={`w-2 h-2 rounded-full transition-colors ${
               isHealthy === null
-                ? "bg-slate-300 dark:bg-slate-600"
+                ? "bg-[var(--sand-300)]"
                 : isHealthy
-                  ? "bg-green-500"
-                  : "bg-red-500"
+                  ? "bg-[var(--color-success)]"
+                  : "bg-[var(--color-error)]"
             }`}
           />
           <span>
@@ -194,7 +190,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+      <label className="block text-sm font-medium text-[var(--ink)] mb-1.5">
         {label}
       </label>
       <input
@@ -202,7 +198,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+        className="w-full px-3 py-2.5 text-sm border border-[var(--sand-200)] rounded-lg bg-white text-[var(--ink)] placeholder-[var(--ink-faint)] focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:border-[var(--terracotta)] transition-colors"
       />
     </div>
   );
@@ -219,7 +215,7 @@ function SubmitButton({
     <button
       type="submit"
       disabled={loading}
-      className="w-full py-2.5 px-4 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      className="w-full py-2.5 px-4 text-sm font-medium text-white bg-[var(--terracotta)] hover:bg-[var(--terracotta-dark)] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:ring-offset-2 cursor-pointer"
     >
       {loading ? "Please wait..." : label}
     </button>

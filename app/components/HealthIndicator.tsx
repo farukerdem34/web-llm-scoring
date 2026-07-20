@@ -6,14 +6,14 @@ export function HealthIndicator() {
   const { isHealthy } = useHealthCheck(30_000);
 
   return (
-    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+    <div className="flex items-center gap-1.5 text-xs text-[var(--ink-muted)]">
       <span
         className={`w-2 h-2 rounded-full transition-colors ${
           isHealthy === null
-            ? "bg-slate-300 dark:bg-slate-600"
+            ? "bg-[var(--sand-300)]"
             : isHealthy
-              ? "bg-green-500"
-              : "bg-red-500"
+              ? "bg-[var(--color-success)]"
+              : "bg-[var(--color-error)]"
         }`}
       />
       <span>Backend</span>

@@ -36,23 +36,23 @@ export function ConfigSidebar({
       />
 
       {/* Sidebar */}
-      <div className="fixed top-0 right-0 h-full w-80 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 z-50 shadow-xl overflow-y-auto">
-        <div className="p-4">
+      <div className="fixed top-0 right-0 h-full w-80 bg-white border-l border-[var(--sand-200)] z-50 shadow-xl overflow-y-auto">
+        <div className="p-5">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <h2 className="text-lg font-semibold text-[var(--ink)]">
               Inference Settings
             </h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={onReset}
-                className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                className="text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] cursor-pointer"
               >
                 Reset All
               </button>
               <button
                 onClick={onClose}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                className="text-[var(--ink-faint)] hover:text-[var(--ink)] cursor-pointer"
                 aria-label="Close settings"
               >
                 ✕

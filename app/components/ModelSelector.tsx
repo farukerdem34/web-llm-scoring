@@ -34,26 +34,28 @@ export function ModelSelector({
         return (
           <div
             key={modelId}
-            className={`flex-1 min-w-[200px] border rounded-lg p-4 transition-all ${
+            className={`flex-1 min-w-[200px] border rounded-xl p-4 transition-all ${
               isSelected
-                ? "border-blue-500 bg-blue-50 dark:bg-blue-950 dark:border-blue-400"
-                : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 hover:shadow-sm"
+                ? "border-[var(--terracotta)] bg-[var(--terracotta-light)]"
+                : "border-[var(--sand-200)] bg-white hover:shadow-sm"
             }`}
           >
             <div className="flex items-start justify-between mb-2">
               <div>
-                <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                <h3 className="font-semibold text-[var(--ink)]">
                   {model.name}
                 </h3>
-                <p className="text-sm text-slate-500">{model.params} parameters</p>
+                <p className="text-sm text-[var(--ink-muted)]">
+                  {model.params} parameters
+                </p>
               </div>
               <button
                 role="switch"
                 aria-checked={isSelected}
                 aria-label={`Toggle ${model.name}`}
                 onClick={() => onToggle(modelId)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  isSelected ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:ring-offset-2 cursor-pointer ${
+                  isSelected ? "bg-[var(--terracotta)]" : "bg-[var(--sand-300)]"
                 }`}
               >
                 <span
@@ -72,7 +74,7 @@ export function ModelSelector({
               <div className="mt-3">
                 <ProgressBar progress={progress} label="Loading model" />
                 {statusText && (
-                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500 truncate">
+                  <p className="mt-1 text-xs text-[var(--ink-faint)] truncate">
                     {statusText}
                   </p>
                 )}
@@ -80,7 +82,9 @@ export function ModelSelector({
             )}
 
             {model.description && (
-              <p className="mt-2 text-xs text-slate-400">{model.description}</p>
+              <p className="mt-2 text-xs text-[var(--ink-faint)]">
+                {model.description}
+              </p>
             )}
           </div>
         );
@@ -91,10 +95,10 @@ export function ModelSelector({
 
 function StatusBadge({ status }: { status: ModelStatus }) {
   const styles: Record<ModelStatus, string> = {
-    idle: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400",
-    loading: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
-    ready: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-    error: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+    idle: "bg-[var(--sand-100)] text-[var(--ink-muted)]",
+    loading: "bg-[var(--terracotta-light)] text-[var(--terracotta-dark)]",
+    ready: "bg-emerald-50 text-emerald-700",
+    error: "bg-red-50 text-red-700",
   };
 
   const labels: Record<ModelStatus, string> = {
@@ -111,12 +115,12 @@ function StatusBadge({ status }: { status: ModelStatus }) {
       <span
         className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
           status === "ready"
-            ? "bg-green-500"
+            ? "bg-emerald-500"
             : status === "loading"
-              ? "bg-amber-500 animate-pulse"
+              ? "bg-[var(--terracotta)] animate-pulse"
               : status === "error"
                 ? "bg-red-500"
-                : "bg-slate-400"
+                : "bg-[var(--sand-400)]"
         }`}
       />
       {labels[status]}
