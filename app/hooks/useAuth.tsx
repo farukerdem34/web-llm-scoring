@@ -42,42 +42,38 @@ function clearAuthCookie() {
   document.cookie = "auth_session=; path=/; max-age=0";
 }
 
-// Read initial session from sessionStorage (runs once at module load)
-let _cachedSession: { token: string; user: AuthUser } | null = null;
-let _sessionRead = false;
-
-function getInitialSession(): { token: string; user: AuthUser } | null {
-  if (_sessionRead) return _cachedSession;
-  _sessionRead = true;
-  if (typeof window === "undefined") return null;
-  try {
-    const token = sessionStorage.getItem(TOKEN_KEY);
-    const userJson = sessionStorage.getItem(USER_KEY);
-    if (token && userJson) {
-      _cachedSession = { token, user: JSON.parse(userJson) as AuthUser };
-      return _cachedSession;
-    }
-  } catch {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
-  }
-  return null;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const initialSession = getInitialSession();
-  const [user, setUser] = useState<AuthUser | null>(
-    initialSession?.user ?? null
-  );
-  const [accessToken, setAccessToken] = useState<string | null>(
-    initialSession?.token ?? null
-  );
-  const [isLoading] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hydrated = useRef(false);
+
+  // Restore session from sessionStorage on client only
+  useEffect(() => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    try {
+      const token = sessionStorage.getItem(TOKEN_KEY);
+      const userJson = sessionStorage.getItem(USER_KEY);
+      if (token && userJson) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- legitimate client-side state restoration
+        setAccessToken(token);
+        setUser(JSON.parse(userJson) as AuthUser);
+        setAuthCookie();
+      }
+    } catch {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   // Persist to sessionStorage whenever token/user changes
   useEffect(() => {
+    if (!hydrated.current) return;
     if (accessToken && user) {
       sessionStorage.setItem(TOKEN_KEY, accessToken);
       sessionStorage.setItem(USER_KEY, JSON.stringify(user));
