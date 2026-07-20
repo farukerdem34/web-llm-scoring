@@ -15,12 +15,21 @@ export function useHealthCheck(intervalMs = 30_000) {
   }, []);
 
   useEffect(() => {
-    check();
-    timer.current = setInterval(check, intervalMs);
+    let cancelled = false;
+    const run = async () => {
+      const ok = await apiHealthCheck();
+      if (!cancelled) {
+        setIsHealthy(ok);
+        setLastChecked(new Date());
+      }
+    };
+    run();
+    timer.current = setInterval(run, intervalMs);
     return () => {
+      cancelled = true;
       if (timer.current) clearInterval(timer.current);
     };
-  }, [check, intervalMs]);
+  }, [intervalMs]);
 
   return { isHealthy, lastChecked, recheck: check };
 }

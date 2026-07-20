@@ -46,6 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const scheduleRefreshRef = useRef<((expiresIn: number) => void) | null>(null);
+
   const scheduleRefresh = useCallback((expiresIn: number) => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
     const ms = Math.max((expiresIn - 60) * 1000, 10_000);
@@ -54,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { apiRefresh } = await import("@/app/lib/auth");
         const data = await apiRefresh();
         setAccessToken(data.access_token);
-        scheduleRefresh(data.expires_in);
+        scheduleRefreshRef.current?.(data.expires_in);
       } catch {
         setUser(null);
         setAccessToken(null);
@@ -62,6 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, ms);
   }, []);
+
+  useEffect(() => {
+    scheduleRefreshRef.current = scheduleRefresh;
+  }, [scheduleRefresh]);
 
   useEffect(() => {
     let cancelled = false;

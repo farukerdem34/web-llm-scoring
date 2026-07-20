@@ -16,18 +16,6 @@ const STORAGE_KEY = "llm-playground-selected-models";
 export default function Home() {
   const { isAuthenticated, isLoading: authLoading, logout } = useAuth();
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <p className="text-sm text-slate-500 dark:text-slate-400">Loading...</p>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <AuthScreen />;
-  }
-
   const {
     engineReady,
     modelStatus,
@@ -119,6 +107,18 @@ export default function Home() {
   const handleGenerate = (prompt: string) => {
     generate(prompt, selectedModels, config);
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
