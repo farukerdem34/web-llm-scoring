@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  AuthUser,
   LoginResponse,
   RefreshResponse,
   RegisterData,
@@ -30,16 +31,14 @@ export async function apiLogin(
   return handleResponse<LoginResponse>(res);
 }
 
-export async function apiRegister(
-  data: RegisterData
-): Promise<LoginResponse> {
+export async function apiRegister(data: RegisterData): Promise<AuthUser> {
   const res = await fetch("/api/v1/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
     credentials: "include",
   });
-  return handleResponse<LoginResponse>(res);
+  return handleResponse<AuthUser>(res);
 }
 
 export async function apiRefresh(): Promise<RefreshResponse> {

@@ -110,10 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }) => {
       setError(null);
       try {
-        const { apiRegister } = await import("@/app/lib/auth");
-        const result = await apiRegister(data);
-        setAccessToken(result.access_token);
-        setUser(result.user);
+        const { apiRegister, apiLogin } = await import("@/app/lib/auth");
+        await apiRegister(data);
+        const loginData = await apiLogin(data.email, data.password);
+        setAccessToken(loginData.access_token);
+        setUser(loginData.user);
       } catch (err) {
         const msg =
           err instanceof Error ? err.message : "Registration failed";
