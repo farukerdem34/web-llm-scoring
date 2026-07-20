@@ -74,7 +74,8 @@ export function PromptInput({
         <button
           onClick={handleSubmit}
           disabled={isDisabled || isEmpty}
-          className="h-12 px-6 bg-[var(--gradient-primary)] text-white rounded-xl font-medium hover:shadow-[var(--shadow-terracotta)] focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:ring-offset-2 disabled:bg-[var(--sand-300)] disabled:text-[var(--ink-faint)] disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer"
+          className="h-12 px-6 text-white rounded-xl font-medium hover:shadow-[var(--shadow-terracotta)] focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:ring-offset-2 disabled:bg-[var(--sand-300)] disabled:text-[var(--ink-faint)] disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer"
+          style={!isDisabled && !isEmpty ? { background: 'var(--gradient-primary)' } : undefined}
         >
           {isGenerating ? "Generating..." : "Generate"}
         </button>

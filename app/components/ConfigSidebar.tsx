@@ -54,7 +54,7 @@ export function ConfigSidebar({
         ref={panelRef}
         role="dialog"
         aria-label="Inference settings"
-        className="fixed top-0 right-0 z-50 flex h-full w-[384px] flex-col overflow-hidden border-l border-[var(--sand-200)] bg-white shadow-[var(--shadow-xl)] dark:bg-[var(--ink)]"
+        className="fixed top-0 right-0 z-50 flex h-full w-[384px] flex-col overflow-hidden border-l border-[var(--sand-200)] bg-white shadow-[var(--shadow-xl)] dark:bg-[var(--sand-100)]"
         style={{ animation: "slide-in-right 300ms ease-out" }}
       >
         {/* Fixed Header */}

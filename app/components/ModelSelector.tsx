@@ -97,8 +97,8 @@ function StatusBadge({ status }: { status: ModelStatus }) {
   const styles: Record<ModelStatus, string> = {
     idle: "bg-[var(--sand-100)] text-[var(--ink-muted)]",
     loading: "bg-[var(--terracotta-light)] text-[var(--terracotta-dark)]",
-    ready: "bg-emerald-50 text-emerald-700",
-    error: "bg-red-50 text-red-700",
+    ready: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+    error: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300",
   };
 
   const labels: Record<ModelStatus, string> = {
