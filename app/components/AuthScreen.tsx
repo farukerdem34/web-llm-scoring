@@ -387,7 +387,7 @@ function FloatingField({
         required={required}
         autoComplete={autoComplete}
         aria-label={label}
-        className="peer w-full h-12 px-4 pt-5 pb-1 text-sm border border-[var(--sand-200)] rounded-lg bg-white/50 text-[var(--ink)] placeholder-transparent focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:border-[var(--terracotta)] transition-all duration-200"
+        className="peer w-full h-12 px-4 pt-5 pb-1 text-sm border border-[var(--sand-200)] rounded-lg bg-white/50 dark:bg-[var(--sand-100)]/80 text-[var(--ink)] placeholder-transparent focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:border-[var(--terracotta)] transition-all duration-200"
         placeholder={label}
       />
       <label
