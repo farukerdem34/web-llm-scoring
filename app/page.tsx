@@ -10,6 +10,8 @@ import { ConfigSidebar } from "./components/ConfigSidebar";
 import { useAuth } from "./hooks/useAuth";
 import { AuthScreen } from "./components/AuthScreen";
 import { HealthIndicator } from "./components/HealthIndicator";
+import { StatsTab } from "./components/StatsTab";
+import { useStats } from "./hooks/useStats";
 
 const STORAGE_KEY = "llm-playground-selected-models";
 const THEME_KEY = "llm-playground-theme";
@@ -43,6 +45,8 @@ export default function Home() {
   } = useConfig();
 
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<"playground" | "stats">("playground");
+  const { recordUsage } = useStats();
   const hasHydratedRef = useRef(false);
   const pendingModelsRef = useRef<string[]>([]);
 
@@ -130,6 +134,22 @@ export default function Home() {
     generate(prompt, selectedModels, config);
   };
 
+  // Record usage stats after generation completes
+  useEffect(() => {
+    if (isGenerating || !results) return;
+    for (const [modelId, result] of Object.entries(results)) {
+      if (result && !result.isStreaming && result.inferenceTime !== null) {
+        recordUsage({
+          model_id: modelId,
+          token_count: result.tokenCount || 0,
+          first_token_time_ms: result.firstTokenTime || null,
+          inference_time_ms: result.inferenceTime,
+          tokens_per_second: result.tokensPerSecond || null,
+        });
+      }
+    }
+  }, [results, isGenerating, recordUsage]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--sand-50)]">
@@ -158,6 +178,30 @@ export default function Home() {
               LLM Playground
             </h1>
           </div>
+
+          {/* Tab navigation */}
+          <nav className="flex gap-1">
+            <button
+              onClick={() => setActiveTab("playground")}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors cursor-pointer ${
+                activeTab === "playground"
+                  ? "bg-[var(--terracotta)] text-white"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--sand-100)]"
+              }`}
+            >
+              Playground
+            </button>
+            <button
+              onClick={() => setActiveTab("stats")}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors cursor-pointer ${
+                activeTab === "stats"
+                  ? "bg-[var(--terracotta)] text-white"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--sand-100)]"
+              }`}
+            >
+              Statistics
+            </button>
+          </nav>
 
           {/* Actions — right */}
           <div className="flex items-center gap-2">
@@ -207,81 +251,87 @@ export default function Home() {
 
       {/* Page content — offset for fixed header */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
-        {/* Error Banner */}
-        {error && (
-          <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--terracotta)]/20 rounded-xl error-banner">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-[var(--terracotta-dark)]">{error}</p>
-              <button
-                onClick={clearError}
-                className="text-[var(--terracotta)] hover:text-[var(--terracotta-dark)] cursor-pointer"
-                aria-label="Dismiss error"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* WebGPU Banner */}
-        {!engineReady && !error && (
-          <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--color-warning)]/20 rounded-xl">
-            <p className="text-sm text-[var(--color-warning)]">
-              Initializing WebGPU engine... This may take a moment.
-            </p>
-          </div>
-        )}
-
-        {/* GPU Diagnostics */}
-        {engineReady && (
-          <div className="mb-4 flex items-center gap-3 text-xs text-[var(--ink-faint)] stagger-child">
-            {gpuVendor && <span>GPU: {gpuVendor}</span>}
-            {gpuMaxBufferSize != null && (
-              <span
-                className={
-                  gpuMaxBufferSize < 1_073_741_824
-                    ? "text-[var(--color-warning)]"
-                    : undefined
-                }
-              >
-                Buffer: {(gpuMaxBufferSize / 1_073_741_824).toFixed(1)} GB
-              </span>
+        {activeTab === "playground" ? (
+          <>
+            {/* Error Banner */}
+            {error && (
+              <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--terracotta)]/20 rounded-xl error-banner">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-[var(--terracotta-dark)]">{error}</p>
+                  <button
+                    onClick={clearError}
+                    className="text-[var(--terracotta)] hover:text-[var(--terracotta-dark)] cursor-pointer"
+                    aria-label="Dismiss error"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
+
+            {/* WebGPU Banner */}
+            {!engineReady && !error && (
+              <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--color-warning)]/20 rounded-xl">
+                <p className="text-sm text-[var(--color-warning)]">
+                  Initializing WebGPU engine... This may take a moment.
+                </p>
+              </div>
+            )}
+
+            {/* GPU Diagnostics */}
+            {engineReady && (
+              <div className="mb-4 flex items-center gap-3 text-xs text-[var(--ink-faint)] stagger-child">
+                {gpuVendor && <span>GPU: {gpuVendor}</span>}
+                {gpuMaxBufferSize != null && (
+                  <span
+                    className={
+                      gpuMaxBufferSize < 1_073_741_824
+                        ? "text-[var(--color-warning)]"
+                        : undefined
+                    }
+                  >
+                    Buffer: {(gpuMaxBufferSize / 1_073_741_824).toFixed(1)} GB
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Model Selector */}
+            <section className="mb-6 stagger-child">
+              <h2 className="text-sm font-medium text-[var(--ink)] mb-3">
+                Select Models
+              </h2>
+              <ModelSelector
+                selectedModels={selectedModels}
+                modelStatus={modelStatus}
+                loadProgress={loadProgress}
+                loadStatus={loadStatus}
+                onToggle={handleToggle}
+              />
+            </section>
+
+            {/* Prompt Input */}
+            <section className="mb-6 stagger-child">
+              <PromptInput
+                isGenerating={isGenerating}
+                hasReadyModel={hasReadyModel}
+                onGenerate={handleGenerate}
+                onClear={clearResults}
+                onCancel={cancelGeneration}
+              />
+            </section>
+
+            {/* Comparison View */}
+            <section className="stagger-child">
+              <h2 className="text-sm font-medium text-[var(--ink)] mb-3">
+                Responses
+              </h2>
+              <ComparisonView selectedModels={selectedModels} results={results} />
+            </section>
+          </>
+        ) : (
+          <StatsTab />
         )}
-
-        {/* Model Selector */}
-        <section className="mb-6 stagger-child">
-          <h2 className="text-sm font-medium text-[var(--ink)] mb-3">
-            Select Models
-          </h2>
-          <ModelSelector
-            selectedModels={selectedModels}
-            modelStatus={modelStatus}
-            loadProgress={loadProgress}
-            loadStatus={loadStatus}
-            onToggle={handleToggle}
-          />
-        </section>
-
-        {/* Prompt Input */}
-        <section className="mb-6 stagger-child">
-          <PromptInput
-            isGenerating={isGenerating}
-            hasReadyModel={hasReadyModel}
-            onGenerate={handleGenerate}
-            onClear={clearResults}
-            onCancel={cancelGeneration}
-          />
-        </section>
-
-        {/* Comparison View */}
-        <section className="stagger-child">
-          <h2 className="text-sm font-medium text-[var(--ink)] mb-3">
-            Responses
-          </h2>
-          <ComparisonView selectedModels={selectedModels} results={results} />
-        </section>
       </div>
 
       {/* Config Sidebar */}
