@@ -109,6 +109,57 @@ WebGPU is required. On unsupported browsers the app shows a compatibility error 
 | Firefox Nightly | Partial (enable `dom.webgpu.enabled`) |
 | Safari | Not supported |
 
+## Deploy to Vercel
+
+### Prerequisites
+
+- A [Vercel](https://vercel.com) account
+- Vercel CLI installed: `npm i -g vercel`
+- Project pushed to a Git remote (GitHub, GitLab, or Bitbucket)
+
+### Option A: Git Integration (recommended)
+
+1. Go to [vercel.com/new](https://vercel.com/new) and import your repository
+2. Vercel auto-detects Next.js — the framework settings (build command, output directory) should be correct
+3. Add the required environment variable in the Vercel dashboard:
+   ```
+   NEXT_PUBLIC_API_BASE_URL = https://masterfabric-go.onrender.com
+   ```
+   Navigate to **Project Settings → Environment Variables** and add it for **Production**, **Preview**, and **Development**
+4. Click **Deploy** — Vercel builds and deploys on every push to the main branch
+
+### Option B: CLI deploy
+
+```bash
+# 1. Log in to Vercel
+vercel login
+
+# 2. Link your project (first time only)
+vercel link
+
+# 3. Set the environment variable
+vercel env add NEXT_PUBLIC_API_BASE_URL production
+# When prompted, paste: https://masterfabric-go.onrender.com
+
+# 4. Deploy a preview
+vercel
+
+# 5. Deploy to production
+vercel --prod
+```
+
+### Verify your deployment
+
+1. Open the deployed URL — you should see the sign-in screen
+2. Sign in — the health indicator dot in the header should turn green
+3. Select a model, type a prompt, and click Generate — responses should stream with performance metrics
+
+### Notes
+
+- `NEXT_PUBLIC_API_BASE_URL` is embedded in the client-side JavaScript at build time (it is not a secret). The URL must be reachable from the user's browser.
+- Model weights are downloaded by the browser directly from the CDN on first use — no server storage is needed.
+- The auth backend (`masterfabric-go.onrender.com`) must be running for login to work. Inference works independently of the backend.
+
 ## License
 
 See repository for license details.
