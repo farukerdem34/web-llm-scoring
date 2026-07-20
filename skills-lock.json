@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "web-mlc-llm": {
+      "source": "farukerdem34/web-mlc-llm-skills",
+      "sourceType": "github",
+      "skillPath": "web-mlc-llm/SKILL.md",
+      "computedHash": "7100f86cd42fb893fe1314163f04595d992854c90bf1d6cff6c312e4dc86ccaf"
+    }
+  }
+}
