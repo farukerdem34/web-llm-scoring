@@ -31,6 +31,9 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+const TOKEN_KEY = "llm-playground-token";
+const USER_KEY = "llm-playground-user";
+
 function setAuthCookie() {
   document.cookie = "auth_session=1; path=/; SameSite=Lax; max-age=86400";
 }
@@ -39,64 +42,51 @@ function clearAuthCookie() {
   document.cookie = "auth_session=; path=/; max-age=0";
 }
 
+// Read initial session from sessionStorage (runs once at module load)
+let _cachedSession: { token: string; user: AuthUser } | null = null;
+let _sessionRead = false;
+
+function getInitialSession(): { token: string; user: AuthUser } | null {
+  if (_sessionRead) return _cachedSession;
+  _sessionRead = true;
+  if (typeof window === "undefined") return null;
+  try {
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    const userJson = sessionStorage.getItem(USER_KEY);
+    if (token && userJson) {
+      _cachedSession = { token, user: JSON.parse(userJson) as AuthUser };
+      return _cachedSession;
+    }
+  } catch {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+  }
+  return null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialSession = getInitialSession();
+  const [user, setUser] = useState<AuthUser | null>(
+    initialSession?.user ?? null
+  );
+  const [accessToken, setAccessToken] = useState<string | null>(
+    initialSession?.token ?? null
+  );
+  const [isLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const scheduleRefreshRef = useRef<((expiresIn: number) => void) | null>(null);
-
-  const scheduleRefresh = useCallback((expiresIn: number) => {
-    if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    const ms = Math.max((expiresIn - 60) * 1000, 10_000);
-    refreshTimer.current = setTimeout(async () => {
-      try {
-        const { apiRefresh } = await import("@/app/lib/auth");
-        const data = await apiRefresh();
-        setAccessToken(data.access_token);
-        scheduleRefreshRef.current?.(data.expires_in);
-      } catch {
-        setUser(null);
-        setAccessToken(null);
-        clearAuthCookie();
-      }
-    }, ms);
-  }, []);
-
+  // Persist to sessionStorage whenever token/user changes
   useEffect(() => {
-    scheduleRefreshRef.current = scheduleRefresh;
-  }, [scheduleRefresh]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { apiRefresh } = await import("@/app/lib/auth");
-        const data = await apiRefresh();
-        if (cancelled) return;
-        setAccessToken(data.access_token);
-        scheduleRefresh(data.expires_in);
-        setUser({
-          id: "",
-          email: "",
-          first_name: "",
-          last_name: "",
-          status: "active",
-        });
-        setAuthCookie();
-      } catch {
-        // No session — user must log in
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
-    };
-  }, [scheduleRefresh]);
+    if (accessToken && user) {
+      sessionStorage.setItem(TOKEN_KEY, accessToken);
+      sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+      setAuthCookie();
+    } else {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
+    }
+  }, [accessToken, user]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -106,15 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await apiLogin(email, password);
         setAccessToken(data.access_token);
         setUser(data.user);
-        scheduleRefresh(data.expires_in);
-        setAuthCookie();
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Login failed";
         setError(msg);
         throw err;
       }
     },
-    [scheduleRefresh]
+    []
   );
 
   const register = useCallback(
@@ -130,8 +118,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const result = await apiRegister(data);
         setAccessToken(result.access_token);
         setUser(result.user);
-        scheduleRefresh(result.expires_in);
-        setAuthCookie();
       } catch (err) {
         const msg =
           err instanceof Error ? err.message : "Registration failed";
@@ -139,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw err;
       }
     },
-    [scheduleRefresh]
+    []
   );
 
   const logout = useCallback(async () => {
@@ -155,6 +141,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(null);
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       clearAuthCookie();
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
     }
   }, [accessToken]);
 
