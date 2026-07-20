@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { InferenceConfig, DEFAULT_INFERENCE_CONFIG } from "@/app/lib/types";
 import { ConfigSlider } from "./ConfigSlider";
 import { ConfigToggle } from "./ConfigToggle";
@@ -25,41 +26,71 @@ export function ConfigSidebar({
   onReset,
   onResetSingle,
 }: ConfigSidebarProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
+        style={{ animation: "fade-in 200ms ease-out" }}
         onClick={onClose}
+        aria-hidden="true"
       />
 
       {/* Sidebar */}
-      <div className="fixed top-0 right-0 h-full w-80 bg-white border-l border-[var(--sand-200)] z-50 shadow-xl overflow-y-auto">
-        <div className="p-5">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-[var(--ink)]">
-              Inference Settings
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onReset}
-                className="text-xs text-[var(--ink-muted)] hover:text-[var(--ink)] cursor-pointer"
+      <aside
+        ref={panelRef}
+        role="dialog"
+        aria-label="Inference settings"
+        className="fixed top-0 right-0 z-50 flex h-full w-[384px] flex-col overflow-hidden border-l border-[var(--sand-200)] bg-white shadow-[var(--shadow-xl)] dark:bg-[var(--ink)]"
+        style={{ animation: "slide-in-right 300ms ease-out" }}
+      >
+        {/* Fixed Header */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--sand-200)] px-5">
+          <h2 className="text-base font-semibold tracking-tight text-[var(--ink)]">
+            Inference Settings
+          </h2>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onReset}
+              className="cursor-pointer rounded-[var(--radius-md)] px-2.5 py-1 text-xs font-medium text-[var(--ink-muted)] transition-colors hover:bg-[var(--sand-100)] hover:text-[var(--ink)]"
+            >
+              Reset All
+            </button>
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-[var(--radius-md)] text-[var(--ink-faint)] transition-colors hover:bg-[var(--sand-100)] hover:text-[var(--ink)]"
+              aria-label="Close settings"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
               >
-                Reset All
-              </button>
-              <button
-                onClick={onClose}
-                className="text-[var(--ink-faint)] hover:text-[var(--ink)] cursor-pointer"
-                aria-label="Close settings"
-              >
-                ✕
-              </button>
-            </div>
+                <path d="M4 4l8 8M12 4l-8 8" />
+              </svg>
+            </button>
           </div>
+        </header>
 
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-6">
           {/* Sampling Parameters */}
           <ConfigSection title="Sampling">
             <ConfigSlider
@@ -75,7 +106,7 @@ export function ConfigSidebar({
             />
             <ConfigSlider
               label="Top P"
-              description="Nucleus sampling - considers only top probability mass tokens"
+              description="Nucleus sampling — considers only top probability mass tokens"
               value={config.top_p}
               min={0}
               max={1}
@@ -123,7 +154,7 @@ export function ConfigSidebar({
             />
             <ConfigSlider
               label="Repetition Penalty"
-              description="MLC-specific: penalizes repeated tokens. >1 encourages new tokens"
+              description="MLC-specific: penalizes repeated tokens. &gt;1 encourages new tokens"
               value={config.repetition_penalty}
               min={0.1}
               max={2}
@@ -146,7 +177,7 @@ export function ConfigSidebar({
             />
           </ConfigSection>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

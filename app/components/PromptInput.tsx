@@ -63,9 +63,9 @@ export function PromptInput({
               ? "Enter your prompt here... (Enter to submit, Shift+Enter for newline)"
               : "Load at least one model to start..."
           }
-          className="w-full h-32 p-4 border border-[var(--sand-200)] rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:border-[var(--terracotta)] disabled:bg-[var(--sand-100)] disabled:text-[var(--ink-faint)] bg-white text-[var(--ink)] placeholder-[var(--ink-faint)] transition-colors"
+          className="w-full h-40 p-4 border border-[var(--sand-200)] rounded-xl resize-none focus:outline-none focus:border-[var(--terracotta)] focus:ring-4 focus:ring-[rgba(217,119,87,0.1)] disabled:bg-[var(--sand-100)] disabled:text-[var(--ink-faint)] bg-white dark:bg-[var(--sand-100)] text-[var(--ink)] placeholder-[var(--ink-faint)] transition-colors"
         />
-        <div className="absolute bottom-2 right-2 text-xs text-[var(--ink-faint)]">
+        <div className="absolute bottom-3 right-3 text-xs text-[var(--ink-faint)] select-none">
           {prompt.length}/{MAX_CHARS}
         </div>
       </div>
@@ -74,7 +74,7 @@ export function PromptInput({
         <button
           onClick={handleSubmit}
           disabled={isDisabled || isEmpty}
-          className="px-6 py-2 bg-[var(--terracotta)] text-white rounded-lg font-medium hover:bg-[var(--terracotta-dark)] focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:ring-offset-2 disabled:bg-[var(--sand-300)] disabled:text-[var(--ink-faint)] disabled:cursor-not-allowed transition-colors cursor-pointer"
+          className="h-12 px-6 bg-[var(--gradient-primary)] text-white rounded-xl font-medium hover:shadow-[var(--shadow-terracotta)] focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:ring-offset-2 disabled:bg-[var(--sand-300)] disabled:text-[var(--ink-faint)] disabled:cursor-not-allowed disabled:shadow-none transition-all cursor-pointer"
         >
           {isGenerating ? "Generating..." : "Generate"}
         </button>
@@ -82,7 +82,7 @@ export function PromptInput({
         {isGenerating && (
           <button
             onClick={onCancel}
-            className="px-4 py-2 border border-[var(--sand-200)] text-[var(--ink-muted)] rounded-lg font-medium hover:bg-[var(--sand-100)] focus:outline-none focus:ring-2 focus:ring-[var(--sand-400)] focus:ring-offset-2 transition-colors cursor-pointer"
+            className="h-12 px-4 border border-[var(--sand-200)] text-[var(--ink-muted)] rounded-xl font-medium hover:bg-[var(--sand-100)] focus:outline-none focus:ring-2 focus:ring-[var(--sand-400)] focus:ring-offset-2 transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -94,7 +94,7 @@ export function PromptInput({
             setPrompt("");
           }}
           disabled={isGenerating}
-          className="px-4 py-2 border border-[var(--sand-200)] text-[var(--ink-muted)] rounded-lg font-medium hover:bg-[var(--sand-100)] focus:outline-none focus:ring-2 focus:ring-[var(--sand-400)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          className="h-12 px-4 border border-[var(--sand-200)] text-[var(--ink-muted)] rounded-xl font-medium hover:bg-[var(--sand-100)] focus:outline-none focus:ring-2 focus:ring-[var(--sand-400)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
         >
           Clear
         </button>

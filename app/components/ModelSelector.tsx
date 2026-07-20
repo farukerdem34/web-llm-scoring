@@ -34,10 +34,10 @@ export function ModelSelector({
         return (
           <div
             key={modelId}
-            className={`flex-1 min-w-[200px] border rounded-xl p-4 transition-all ${
+            className={`flex-1 min-w-[200px] border rounded-xl p-5 transition-all card-hover ${
               isSelected
-                ? "border-[var(--terracotta)] bg-[var(--terracotta-light)]"
-                : "border-[var(--sand-200)] bg-white hover:shadow-sm"
+                ? "border-[var(--terracotta)] bg-[var(--terracotta-light)] shadow-[var(--shadow-terracotta)]"
+                : "border-[var(--sand-200)] bg-white dark:bg-[var(--sand-100)]"
             }`}
           >
             <div className="flex items-start justify-between mb-2">

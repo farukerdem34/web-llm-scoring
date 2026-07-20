@@ -12,6 +12,7 @@ import { AuthScreen } from "./components/AuthScreen";
 import { HealthIndicator } from "./components/HealthIndicator";
 
 const STORAGE_KEY = "llm-playground-selected-models";
+const THEME_KEY = "llm-playground-theme";
 
 export default function Home() {
   const { isAuthenticated, isLoading: authLoading, logout } = useAuth();
@@ -44,6 +45,29 @@ export default function Home() {
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const hasHydratedRef = useRef(false);
   const pendingModelsRef = useRef<string[]>([]);
+
+  // Dark mode state — lazy initializer reads localStorage / system preference
+  const [dark, setDark] = useState(() => {
+    try {
+      const stored = localStorage.getItem(THEME_KEY);
+      if (stored === "dark" || stored === "light") return stored === "dark";
+    } catch {}
+    if (typeof window !== "undefined") {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    return false;
+  });
+
+  const hasHydratedTheme = useRef(false);
+
+  // Apply dark class to <html> and persist
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    if (hasHydratedTheme.current) {
+      localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+    }
+    hasHydratedTheme.current = true;
+  }, [dark]);
 
   useEffect(() => {
     if (hasHydratedRef.current) return;
@@ -120,60 +144,72 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[var(--sand-50)]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <header className="border-b border-[var(--sand-200)] pb-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
-                LLM Playground
-              </h1>
-              <p className="mt-1 text-sm text-[var(--ink-muted)]">
-                Compare models side-by-side with browser-based inference
-              </p>
+      {/* Fixed Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-[var(--sand-50)]/80 backdrop-blur-md border-b border-[var(--sand-200)] shadow-[var(--shadow-sm)]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+          {/* Logo — left */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[var(--terracotta)] flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
             </div>
-            <div className="flex items-center gap-3">
-              <HealthIndicator />
-              <button
-                onClick={() => setIsConfigOpen(true)}
-                className="p-2 text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--sand-100)] rounded-lg transition-colors cursor-pointer"
-                aria-label="Open inference settings"
-                title="Inference Settings"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={logout}
-                className="px-3 py-1.5 text-xs font-medium text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--sand-100)] rounded-lg transition-colors cursor-pointer"
-              >
-                Logout
-              </button>
-            </div>
+            <h1 className="text-lg font-semibold tracking-tight text-[var(--ink)]">
+              LLM Playground
+            </h1>
           </div>
-        </header>
 
+          {/* Actions — right */}
+          <div className="flex items-center gap-2">
+            <HealthIndicator />
+
+            {/* Dark mode toggle */}
+            <button
+              onClick={() => setDark((d) => !d)}
+              className="p-2 text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--sand-100)] rounded-lg transition-colors cursor-pointer"
+              aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+              title={dark ? "Light mode" : "Dark mode"}
+            >
+              {dark ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+
+            {/* Settings */}
+            <button
+              onClick={() => setIsConfigOpen(true)}
+              className="p-2 text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--sand-100)] rounded-lg transition-colors cursor-pointer"
+              aria-label="Open inference settings"
+              title="Inference Settings"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+
+            {/* Logout */}
+            <button
+              onClick={logout}
+              className="px-3 py-1.5 text-xs font-medium text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--sand-100)] rounded-lg transition-colors cursor-pointer"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Page content — offset for fixed header */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
         {/* Error Banner */}
         {error && (
-          <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--terracotta)]/20 rounded-lg">
+          <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--terracotta)]/20 rounded-xl error-banner">
             <div className="flex items-center justify-between">
               <p className="text-sm text-[var(--terracotta-dark)]">{error}</p>
               <button
@@ -189,7 +225,7 @@ export default function Home() {
 
         {/* WebGPU Banner */}
         {!engineReady && !error && (
-          <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--color-warning)]/20 rounded-lg">
+          <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--color-warning)]/20 rounded-xl">
             <p className="text-sm text-[var(--color-warning)]">
               Initializing WebGPU engine... This may take a moment.
             </p>
@@ -198,7 +234,7 @@ export default function Home() {
 
         {/* GPU Diagnostics */}
         {engineReady && (
-          <div className="mb-4 flex items-center gap-3 text-xs text-[var(--ink-faint)]">
+          <div className="mb-4 flex items-center gap-3 text-xs text-[var(--ink-faint)] stagger-child">
             {gpuVendor && <span>GPU: {gpuVendor}</span>}
             {gpuMaxBufferSize != null && (
               <span
@@ -215,7 +251,7 @@ export default function Home() {
         )}
 
         {/* Model Selector */}
-        <section className="mb-6">
+        <section className="mb-6 stagger-child">
           <h2 className="text-sm font-medium text-[var(--ink)] mb-3">
             Select Models
           </h2>
@@ -229,7 +265,7 @@ export default function Home() {
         </section>
 
         {/* Prompt Input */}
-        <section className="mb-6">
+        <section className="mb-6 stagger-child">
           <PromptInput
             isGenerating={isGenerating}
             hasReadyModel={hasReadyModel}
@@ -240,7 +276,7 @@ export default function Home() {
         </section>
 
         {/* Comparison View */}
-        <section>
+        <section className="stagger-child">
           <h2 className="text-sm font-medium text-[var(--ink)] mb-3">
             Responses
           </h2>

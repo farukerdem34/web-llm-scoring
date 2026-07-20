@@ -32,7 +32,7 @@ export function ResponseCard({ modelId, result }: ResponseCardProps) {
   };
 
   return (
-    <div className="flex flex-col border border-[var(--sand-200)] rounded-xl bg-white">
+    <div className="flex flex-col border border-[var(--sand-200)] rounded-xl bg-white dark:bg-[var(--sand-100)] shadow-[var(--shadow-sm)]">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--sand-200)] bg-[var(--sand-50)] rounded-t-xl">
         <div className="flex items-center justify-between">
@@ -56,7 +56,7 @@ export function ResponseCard({ modelId, result }: ResponseCardProps) {
       </div>
 
       {/* Response Body */}
-      <div className="flex-1 p-4 min-h-[200px] max-h-[400px] overflow-y-auto">
+      <div className="flex-1 p-4 min-h-[240px] max-h-[480px] overflow-y-auto">
         {!result.text && !result.isStreaming && (
           <p className="text-[var(--ink-faint)] text-sm italic">
             Response will appear here...
@@ -72,11 +72,11 @@ export function ResponseCard({ modelId, result }: ResponseCardProps) {
 
         {result.text && (
           <div className="prose prose-sm max-w-none">
-            <pre className="whitespace-pre-wrap font-sans text-sm text-[var(--ink)]">
+            <pre className="whitespace-pre-wrap font-sans text-sm text-[var(--ink)] leading-relaxed">
               {result.text}
             </pre>
             {result.isStreaming && (
-              <span className="inline-block w-2 h-4 bg-[var(--terracotta)] animate-pulse ml-0.5" />
+              <span className="streaming-cursor" />
             )}
           </div>
         )}
@@ -84,7 +84,7 @@ export function ResponseCard({ modelId, result }: ResponseCardProps) {
 
       {/* Metrics Footer */}
       {(result.inferenceTime !== null || result.isStreaming) && (
-        <div className="px-4 py-2 border-t border-[var(--sand-200)] bg-[var(--sand-50)] rounded-b-xl">
+        <div className="px-4 py-2.5 border-t border-[var(--sand-200)] bg-[var(--sand-50)] rounded-b-xl">
           <div className="flex gap-4 text-xs text-[var(--ink-muted)] font-mono">
             {result.isStreaming ? (
               <>
