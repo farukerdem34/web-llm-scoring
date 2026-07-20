@@ -84,3 +84,9 @@ export interface ApiError {
   code: number;
 }
 
+// Multi-worker engine types
+export interface ModelEngineEntry {
+  worker: Worker;
+  engine: import("@mlc-ai/web-llm").WebWorkerMLCEngine;
+}
+
