@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Nunito, Noto_Serif } from "next/font/google";
+import { Nunito, Noto_Serif, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/app/hooks/useAuth";
 import "./globals.css";
 
@@ -11,6 +11,12 @@ const nunito = Nunito({
 
 const notoSerif = Noto_Serif({
   variable: "--font-noto-serif",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
   display: "swap",
 });
@@ -29,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${nunito.variable} ${notoSerif.variable} h-full antialiased`}
+      className={`${nunito.variable} ${notoSerif.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>{children}</AuthProvider>
