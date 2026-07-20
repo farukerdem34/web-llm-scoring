@@ -6,8 +6,6 @@ import type {
   RegisterData,
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
-
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -23,7 +21,7 @@ export async function apiLogin(
   email: string,
   password: string
 ): Promise<LoginResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+  const res = await fetch("/api/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -35,7 +33,7 @@ export async function apiLogin(
 export async function apiRegister(
   data: RegisterData
 ): Promise<LoginResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+  const res = await fetch("/api/v1/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -45,7 +43,7 @@ export async function apiRegister(
 }
 
 export async function apiRefresh(): Promise<RefreshResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+  const res = await fetch("/api/v1/auth/refresh", {
     method: "POST",
     credentials: "include",
   });
@@ -53,7 +51,7 @@ export async function apiRefresh(): Promise<RefreshResponse> {
 }
 
 export async function apiLogout(accessToken: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/logout`, {
+  const res = await fetch("/api/v1/auth/logout", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
     credentials: "include",
@@ -68,9 +66,7 @@ export async function apiLogout(accessToken: string): Promise<void> {
 
 export async function apiHealthCheck(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/health/live`, {
-      method: "GET",
-    });
+    const res = await fetch("/health/live", { method: "GET" });
     return res.ok;
   } catch {
     return false;
