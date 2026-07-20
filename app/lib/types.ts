@@ -41,6 +41,13 @@ export interface ModelConfig {
   };
 }
 
+export interface ToolCallInfo {
+  id: string;
+  name: string;
+  arguments: string;
+  result: string;
+}
+
 export interface GenerationResult {
   text: string;
   firstTokenTime: number | null;
@@ -48,6 +55,7 @@ export interface GenerationResult {
   tokenCount: number | null;
   tokensPerSecond: number | null;
   isStreaming: boolean;
+  toolCalls?: ToolCallInfo[];
 }
 
 // Auth types

@@ -7,7 +7,8 @@ import {
   type AppConfig,
 } from "@mlc-ai/web-llm";
 import { MODEL_IDS, MODELS } from "@/app/lib/models";
-import { ModelStatus, GenerationResult, InferenceConfig, ModelEngineEntry } from "@/app/lib/types";
+import { ModelStatus, GenerationResult, InferenceConfig, ModelEngineEntry, ToolCallInfo } from "@/app/lib/types";
+import { BUILT_IN_TOOLS, executeTool } from "@/app/lib/tools";
 
 const appConfig: AppConfig = { ...prebuiltAppConfig, cacheBackend: "indexeddb" };
 
@@ -240,7 +241,11 @@ export function useWebLLM() {
         return next;
       });
 
-      const runModel = async (modelId: string) => {
+      const runModel = async (
+        modelId: string,
+        conversationMessages: import("@mlc-ai/web-llm").ChatCompletionMessageParam[] = [],
+        toolDepth = 0
+      ) => {
         const entry = enginesRef.current.get(modelId);
         if (!entry) return;
 
@@ -256,13 +261,17 @@ export function useWebLLM() {
         if (config?.system_prompt?.trim()) {
           messages.push({ role: "system", content: config.system_prompt.trim() });
         }
-        messages.push({ role: "user", content: prompt });
+        if (conversationMessages.length === 0) {
+          messages.push({ role: "user", content: prompt });
+        }
+        messages.push(...conversationMessages);
 
         const request: import("@mlc-ai/web-llm").ChatCompletionRequest = {
           stream: true,
           stream_options: { include_usage: true },
           messages,
           model: modelId,
+          tools: BUILT_IN_TOOLS,
           max_tokens: config?.max_tokens ?? MODELS[modelId]?.defaultParams.max_tokens ?? 200,
           temperature: config?.temperature ?? MODELS[modelId]?.defaultParams.temperature ?? 0.7,
           top_p: config?.top_p ?? MODELS[modelId]?.defaultParams.top_p ?? 0.9,
@@ -274,6 +283,11 @@ export function useWebLLM() {
 
         const startTime = Date.now();
         let firstTokenCaptured = false;
+        const toolCallAccumulator = new Map<
+          number,
+          { id: string; name: string; arguments: string }
+        >();
+        let finishReasonToolCalls = false;
 
         try {
           const stream = await engine.chat.completions.create(request);
@@ -281,7 +295,12 @@ export function useWebLLM() {
           for await (const chunk of stream) {
             if (cancelGenerationRef.current) break;
 
-            const content = chunk.choices[0]?.delta?.content || "";
+            const choice = chunk.choices[0];
+            if (!choice) continue;
+
+            const delta = choice.delta;
+
+            const content = delta?.content || "";
             if (content) {
               if (!firstTokenCaptured) {
                 firstTokenCaptured = true;
@@ -301,6 +320,25 @@ export function useWebLLM() {
                   text: prev[modelId].text + content,
                 },
               }));
+            }
+
+            if (delta?.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                const existing = toolCallAccumulator.get(tc.index);
+                if (existing) {
+                  existing.arguments += tc.function?.arguments || "";
+                } else {
+                  toolCallAccumulator.set(tc.index, {
+                    id: tc.id || `call_${tc.index}`,
+                    name: tc.function?.name || "",
+                    arguments: tc.function?.arguments || "",
+                  });
+                }
+              }
+            }
+
+            if (choice.finish_reason === "tool_calls") {
+              finishReasonToolCalls = true;
             }
 
             if (chunk.usage) {
@@ -327,7 +365,7 @@ export function useWebLLM() {
                 ...prev,
                 [modelId]: { ...createEmptyResult(), isStreaming: true },
               }));
-              await runModel(modelId);
+              await runModel(modelId, conversationMessages, toolDepth);
               return;
             } catch {
               setResults((prev) => ({
@@ -349,6 +387,73 @@ export function useWebLLM() {
               isStreaming: false,
             },
           }));
+          return;
+        }
+
+        if (cancelGenerationRef.current) return;
+
+        if (finishReasonToolCalls && toolCallAccumulator.size > 0) {
+          if (toolDepth >= 5) {
+            setResults((prev) => ({
+              ...prev,
+              [modelId]: {
+                ...prev[modelId],
+                text: prev[modelId].text + "\n\n[Tool call limit reached (5 iterations)]",
+                isStreaming: false,
+              },
+            }));
+            return;
+          }
+
+          const toolCalls: ToolCallInfo[] = [];
+          const followUpMessages: import("@mlc-ai/web-llm").ChatCompletionMessageParam[] = [];
+
+          for (const [, tc] of toolCallAccumulator) {
+            let parsedArgs: Record<string, unknown> = {};
+            try {
+              parsedArgs = JSON.parse(tc.arguments);
+            } catch {
+              // invalid JSON from model — pass empty args
+            }
+
+            const result = await executeTool(tc.name, parsedArgs);
+
+            toolCalls.push({
+              id: tc.id,
+              name: tc.name,
+              arguments: tc.arguments,
+              result,
+            });
+
+            followUpMessages.push({
+              role: "assistant",
+              content: null,
+              tool_calls: [
+                {
+                  id: tc.id,
+                  type: "function",
+                  function: { name: tc.name, arguments: tc.arguments },
+                },
+              ],
+            });
+
+            followUpMessages.push({
+              role: "tool",
+              tool_call_id: tc.id,
+              content: result,
+            });
+          }
+
+          setResults((prev) => ({
+            ...prev,
+            [modelId]: {
+              ...prev[modelId],
+              toolCalls: [...(prev[modelId].toolCalls || []), ...toolCalls],
+            },
+          }));
+
+          await runModel(modelId, [...conversationMessages, ...followUpMessages], toolDepth + 1);
+          return;
         }
       };
 

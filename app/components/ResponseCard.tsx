@@ -57,18 +57,35 @@ export function ResponseCard({ modelId, result }: ResponseCardProps) {
 
       {/* Response Body */}
       <div className="flex-1 p-4 min-h-[240px] max-h-[480px] overflow-y-auto">
-        {!result.text && !result.isStreaming && (
+        {!result.text && !result.isStreaming && !result.toolCalls?.length && (
           <p className="text-[var(--ink-faint)] text-sm italic">
             Response will appear here...
           </p>
         )}
 
-        {result.isStreaming && result.text === "" && (
+        {result.isStreaming && result.text === "" && !result.toolCalls?.length && (
           <div className="flex items-center gap-2 text-[var(--ink-muted)]">
             <div className="w-4 h-4 border-2 border-[var(--terracotta)] border-t-transparent rounded-full animate-spin" />
             <span className="text-sm">Waiting for first token...</span>
           </div>
         )}
+
+        {result.toolCalls?.map((tc, i) => (
+          <div key={i} className="mb-3 text-sm">
+            <div className="flex items-start gap-2 py-1.5 px-3 bg-[var(--sand-50)] rounded-lg border border-[var(--sand-200)]">
+              <span className="text-[var(--ink-muted)] mt-0.5 shrink-0">{"\uD83D\uDD27"}</span>
+              <div className="min-w-0">
+                <code className="text-xs font-mono text-[var(--terracotta)]">
+                  {tc.name}({tc.arguments})
+                </code>
+                <div className="mt-1 text-xs text-[var(--ink-muted)] whitespace-pre-wrap break-words">
+                  {tc.result.slice(0, 500)}
+                  {tc.result.length > 500 ? "..." : ""}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
 
         {result.text && (
           <div className="prose prose-sm max-w-none">
