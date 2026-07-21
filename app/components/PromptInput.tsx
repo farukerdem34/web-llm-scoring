@@ -1,13 +1,22 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { EvaluateButton } from "./EvaluateButton";
+import { JudgeModelSelector } from "./JudgeModelSelector";
+import { type ModelStatus } from "@/app/lib/types";
 
 interface PromptInputProps {
   isGenerating: boolean;
   hasReadyModel: boolean;
+  hasResponses: boolean;
+  isScoring: boolean;
+  judgeModelId: string;
+  modelStatus: Record<string, ModelStatus>;
   onGenerate: (prompt: string) => void;
   onClear: () => void;
   onCancel: () => void;
+  onEvaluate: () => void;
+  onSetJudgeModel: (modelId: string) => void;
 }
 
 const MAX_CHARS = 4096;
@@ -15,9 +24,15 @@ const MAX_CHARS = 4096;
 export function PromptInput({
   isGenerating,
   hasReadyModel,
+  hasResponses,
+  isScoring,
+  judgeModelId,
+  modelStatus,
   onGenerate,
   onClear,
   onCancel,
+  onEvaluate,
+  onSetJudgeModel,
 }: PromptInputProps) {
   const [prompt, setPrompt] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -100,6 +115,21 @@ export function PromptInput({
           Clear
         </button>
       </div>
+
+      {hasResponses && !isGenerating && (
+        <div className="flex items-center gap-3">
+          <JudgeModelSelector
+            selectedModelId={judgeModelId}
+            modelStatus={modelStatus}
+            onSelect={onSetJudgeModel}
+          />
+          <EvaluateButton
+            onClick={onEvaluate}
+            disabled={!hasReadyModel || !judgeModelId}
+            isScoring={isScoring}
+          />
+        </div>
+      )}
     </div>
   );
 }
