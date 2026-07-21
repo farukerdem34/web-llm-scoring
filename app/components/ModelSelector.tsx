@@ -1,6 +1,6 @@
 "use client";
 
-import { MODELS, getModelIds } from "@/app/lib/models";
+import { getModelsByGroup, GROUP_ORDER } from "@/app/lib/models";
 import { ModelStatus } from "@/app/lib/types";
 import { ProgressBar } from "./ProgressBar";
 
@@ -19,76 +19,81 @@ export function ModelSelector({
   loadStatus,
   onToggle,
 }: ModelSelectorProps) {
-  const modelIds = getModelIds();
+  const grouped = getModelsByGroup();
 
   return (
-    <div className="flex gap-4 flex-col sm:flex-row">
-      {modelIds.map((modelId) => {
-        const model = MODELS[modelId];
-        if (!model) return null;
-        const status = modelStatus[modelId] || "idle";
-        const progress = loadProgress[modelId] || 0;
-        const statusText = loadStatus[modelId] || "";
-        const isSelected = selectedModels.includes(modelId);
+    <div className="space-y-6">
+      {grouped.map(([group, models]) => (
+        <div key={group}>
+          <h3 className="text-xs font-semibold tracking-widest uppercase text-[var(--ink-faint)] mb-3">
+            {GROUP_ORDER[group]?.label ?? group}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {models.map((model) => {
+              const status = modelStatus[model.id] || "idle";
+              const progress = loadProgress[model.id] || 0;
+              const statusText = loadStatus[model.id] || "";
+              const isSelected = selectedModels.includes(model.id);
 
-        return (
-          <div
-            key={modelId}
-            className={`flex-1 min-w-[200px] border rounded-xl p-5 transition-all card-hover ${
-              isSelected
-                ? "border-[var(--terracotta)] bg-[var(--terracotta-light)] shadow-[var(--shadow-terracotta)]"
-                : "border-[var(--sand-200)] bg-white dark:bg-[var(--sand-100)]"
-            }`}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold text-[var(--ink)]">
-                  {model.name}
-                </h3>
-                <p className="text-sm text-[var(--ink-muted)]">
-                  {model.params} parameters
-                </p>
-              </div>
-              <button
-                role="switch"
-                aria-checked={isSelected}
-                aria-label={`Toggle ${model.name}`}
-                onClick={() => onToggle(modelId)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:ring-offset-2 cursor-pointer ${
-                  isSelected ? "bg-[var(--terracotta)]" : "bg-[var(--sand-300)]"
-                }`}
-              >
-                <span
-                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                    isSelected ? "translate-x-4" : "translate-x-0.5"
+              return (
+                <div
+                  key={model.id}
+                  className={`border rounded-xl p-5 transition-all card-hover ${
+                    isSelected
+                      ? "border-[var(--terracotta)] bg-[var(--terracotta-light)] shadow-[var(--shadow-terracotta)]"
+                      : "border-[var(--sand-200)] bg-white dark:bg-[var(--sand-100)]"
                   }`}
-                />
-              </button>
-            </div>
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="font-semibold text-[var(--ink)]">
+                        {model.name}
+                      </h3>
+                      <p className="text-sm text-[var(--ink-muted)]">
+                        {model.params} parameters
+                      </p>
+                    </div>
+                    <button
+                      role="switch"
+                      aria-checked={isSelected}
+                      aria-label={`Toggle ${model.name}`}
+                      onClick={() => onToggle(model.id)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--terracotta)]/30 focus:ring-offset-2 cursor-pointer ${
+                        isSelected ? "bg-[var(--terracotta)]" : "bg-[var(--sand-300)]"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                          isSelected ? "translate-x-4" : "translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
 
-            <div className="mt-2">
-              <StatusBadge status={status} />
-            </div>
+                  <div className="mt-2">
+                    <StatusBadge status={status} />
+                  </div>
 
-            {status === "loading" && (
-              <div className="mt-3">
-                <ProgressBar progress={progress} label="Loading model" />
-                {statusText && (
-                  <p className="mt-1 text-xs text-[var(--ink-faint)] truncate">
-                    {statusText}
+                  {status === "loading" && (
+                    <div className="mt-3">
+                      <ProgressBar progress={progress} label="Loading model" />
+                      {statusText && (
+                        <p className="mt-1 text-xs text-[var(--ink-faint)] truncate">
+                          {statusText}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="mt-2 text-xs text-[var(--ink-faint)]">
+                    {model.description}
                   </p>
-                )}
-              </div>
-            )}
-
-            {model.description && (
-              <p className="mt-2 text-xs text-[var(--ink-faint)]">
-                {model.description}
-              </p>
-            )}
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }

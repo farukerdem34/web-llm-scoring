@@ -28,7 +28,8 @@ export interface ModelConfig {
   name: string;
   params: string;
   description: string;
-  color: string; // Tailwind color class for visual identity
+  color: string;
+  group: "base" | "gemma";
   defaultParams: {
     temperature: number;
     top_p: number;

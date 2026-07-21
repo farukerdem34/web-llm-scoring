@@ -9,7 +9,25 @@ import {
 import { MODEL_IDS, MODELS } from "@/app/lib/models";
 import { ModelStatus, GenerationResult, InferenceConfig, ModelEngineEntry } from "@/app/lib/types";
 
-const appConfig: AppConfig = { ...prebuiltAppConfig, cacheBackend: "indexeddb" };
+const modelLibBase = "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_84/base/";
+
+const gemma3CustomModels: AppConfig["model_list"] = [
+  "mlc-ai/gemma3-1b-it-q4f16_1-MLC",
+].map((modelId) => {
+  const quant = modelId.match(/it-(.+)-MLC$/)?.[1] ?? "";
+  return {
+    model: `https://huggingface.co/${modelId}`,
+    model_id: modelId,
+    model_lib: `${modelLibBase}gemma3-1b-it-${quant}_cs1k-webgpu.wasm`,
+    overrides: { context_window_size: 8192, sliding_window_size: -1 } as const,
+  };
+});
+
+const appConfig: AppConfig = {
+  ...prebuiltAppConfig,
+  model_list: [...prebuiltAppConfig.model_list, ...gemma3CustomModels],
+  cacheBackend: "indexeddb",
+};
 
 function describeError(err: unknown): string {
   if (!(err instanceof Error)) return String(err);
