@@ -48,6 +48,44 @@ export interface GenerationResult {
   tokenCount: number | null;
   tokensPerSecond: number | null;
   isStreaming: boolean;
+  scores?: ScoreResult;
+}
+
+export type ScoreCriterion = "accuracy" | "helpfulness" | "coherence" | "completeness";
+
+export const SCORE_CRITERIA: ScoreCriterion[] = [
+  "accuracy",
+  "helpfulness",
+  "coherence",
+  "completeness",
+];
+
+export const SCORE_CRITERIA_LABELS: Record<ScoreCriterion, string> = {
+  accuracy: "Accuracy",
+  helpfulness: "Helpfulness",
+  coherence: "Coherence",
+  completeness: "Completeness",
+};
+
+export const SCORE_CRITERIA_DESCRIPTIONS: Record<ScoreCriterion, string> = {
+  accuracy: "Is the information correct and factual?",
+  helpfulness: "Does it effectively address the user's needs?",
+  coherence: "Is it well-structured and logical?",
+  completeness: "Does it cover all aspects of the question?",
+};
+
+export interface ScoreResult {
+  modelId: string;
+  scores: Record<ScoreCriterion, number>;
+  overallScore: number;
+  reasoning: string;
+}
+
+export interface EvaluationResult {
+  prompt: string;
+  judgeModelId: string;
+  scores: ScoreResult[];
+  timestamp: number;
 }
 
 // Auth types
