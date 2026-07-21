@@ -15,7 +15,7 @@ export function ScoreDisplay({ score }: ScoreDisplayProps) {
   const [isReasoningOpen, setIsReasoningOpen] = useState(false);
 
   return (
-    <div className="border-t border-[var(--sand-200)] px-4 py-3 bg-[var(--sand-50)]">
+    <div className="border-t border-[var(--sand-200)] px-4 py-3 bg-[var(--sand-50)] rounded-b-xl">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium text-[var(--ink-muted)]">
           Scores

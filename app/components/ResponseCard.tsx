@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { MODELS } from "@/app/lib/models";
 import { GenerationResult } from "@/app/lib/types";
+import { ScoreDisplay } from "./ScoreDisplay";
 
 interface ResponseCardProps {
   modelId: string;
@@ -84,7 +85,7 @@ export function ResponseCard({ modelId, result }: ResponseCardProps) {
 
       {/* Metrics Footer */}
       {(result.inferenceTime !== null || result.isStreaming) && (
-        <div className="px-4 py-2.5 border-t border-[var(--sand-200)] bg-[var(--sand-50)] rounded-b-xl">
+        <div className={`px-4 py-2.5 border-t border-[var(--sand-200)] bg-[var(--sand-50)] ${result.scores ? "" : "rounded-b-xl"}`}>
           <div className="flex gap-4 text-xs text-[var(--ink-muted)] font-mono">
             {result.isStreaming ? (
               <>
@@ -107,6 +108,9 @@ export function ResponseCard({ modelId, result }: ResponseCardProps) {
           </div>
         </div>
       )}
+
+      {/* Scores */}
+      {result.scores && <ScoreDisplay score={result.scores} />}
     </div>
   );
 }
