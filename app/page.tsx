@@ -13,6 +13,8 @@ import { AuthScreen } from "./components/AuthScreen";
 import { HealthIndicator } from "./components/HealthIndicator";
 import { StatsTab } from "./components/StatsTab";
 import { useStats } from "./hooks/useStats";
+import { useScoring } from "./hooks/useScoring";
+import { MODELS } from "./lib/models";
 
 const STORAGE_KEY = "llm-playground-selected-models";
 const THEME_KEY = "llm-playground-theme";
@@ -36,6 +38,8 @@ export default function Home() {
     cancelGeneration,
     clearResults,
     clearError,
+    getEngine,
+    setResults,
   } = useWebLLM();
 
   const {
@@ -48,6 +52,16 @@ export default function Home() {
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"playground" | "stats">("playground");
   const { recordUsage } = useStats();
+  const {
+    evaluationResult,
+    isScoring,
+    scoringError,
+    judgeModelId,
+    setJudgeModel,
+    evaluateAll,
+    clearScores,
+    clearScoringError,
+  } = useScoring();
   const hasHydratedRef = useRef(false);
   const pendingModelsRef = useRef<string[]>([]);
 
@@ -97,6 +111,29 @@ export default function Home() {
     (id) => modelStatus[id] === "ready"
   );
 
+  const hasResponses = Object.values(results).some(
+    (r) => r.text && !r.isStreaming
+  );
+
+  useEffect(() => {
+    if (judgeModelId && modelStatus[judgeModelId] === "ready") return;
+
+    const readyModels = selectedModels.filter(
+      (id) => modelStatus[id] === "ready"
+    );
+    if (readyModels.length === 0) return;
+
+    const largestReady = readyModels.reduce((best, id) => {
+      const bestConfig = MODELS[best];
+      const idConfig = MODELS[id];
+      const bestParams = parseFloat(bestConfig?.params || "0");
+      const idParams = parseFloat(idConfig?.params || "0");
+      return idParams > bestParams ? id : best;
+    }, readyModels[0]);
+
+    setJudgeModel(largestReady);
+  }, [selectedModels, modelStatus, judgeModelId, setJudgeModel]);
+
   const handleToggle = (modelId: string) => {
     setSelectedModels((prev) => {
       const isSelected = prev.includes(modelId);
@@ -131,9 +168,37 @@ export default function Home() {
     }
   }, [engineReady, loadModel, modelStatus, selectedModels]);
 
+  const lastPromptRef = useRef("");
+
   const handleGenerate = (prompt: string) => {
+    lastPromptRef.current = prompt;
+    clearScores();
     generate(prompt, selectedModels, config);
   };
+
+  const handleEvaluate = () => {
+    const judgeEngine = getEngine(judgeModelId);
+    if (!judgeEngine) return;
+    evaluateAll(
+      lastPromptRef.current,
+      config.system_prompt,
+      results,
+      judgeEngine
+    );
+  };
+
+  useEffect(() => {
+    if (!evaluationResult) return;
+    setResults((prev) => {
+      const next = { ...prev };
+      for (const score of evaluationResult.scores) {
+        if (next[score.modelId]) {
+          next[score.modelId] = { ...next[score.modelId], scores: score };
+        }
+      }
+      return next;
+    });
+  }, [evaluationResult, setResults]);
 
   // Record usage stats after generation completes
   useEffect(() => {
@@ -270,6 +335,23 @@ export default function Home() {
               </div>
             )}
 
+            {scoringError && (
+              <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--terracotta)]/20 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-[var(--terracotta-dark)]">
+                    {scoringError}
+                  </p>
+                  <button
+                    onClick={clearScoringError}
+                    className="text-[var(--terracotta)] hover:text-[var(--terracotta-dark)] cursor-pointer"
+                    aria-label="Dismiss"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* WebGPU Banner */}
             {!engineReady && !error && (
               <div className="mb-4 p-4 bg-[var(--terracotta-light)] border border-[var(--color-warning)]/20 rounded-xl">
@@ -325,9 +407,15 @@ export default function Home() {
               <PromptInput
                 isGenerating={isGenerating}
                 hasReadyModel={hasReadyModel}
+                hasResponses={hasResponses}
+                isScoring={isScoring}
+                judgeModelId={judgeModelId}
+                modelStatus={modelStatus}
                 onGenerate={handleGenerate}
                 onClear={clearResults}
                 onCancel={cancelGeneration}
+                onEvaluate={handleEvaluate}
+                onSetJudgeModel={setJudgeModel}
               />
             </section>
 

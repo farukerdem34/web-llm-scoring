@@ -405,6 +405,8 @@ export function useWebLLM() {
     cancelGeneration,
     clearResults,
     clearError: () => setError(null),
+    getEngine: (modelId: string) => enginesRef.current.get(modelId)?.engine ?? null,
+    setResults,
   };
 }
 
