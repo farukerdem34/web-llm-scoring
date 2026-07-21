@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import type { WebWorkerMLCEngine } from "@mlc-ai/web-llm";
+
+const EVALUATION_TIMEOUT = 60000;
 import {
   type GenerationResult,
   type ScoreResult,
@@ -189,24 +191,33 @@ export function useScoring() {
       let rawResponse = "";
       let parsedData: Record<string, unknown> | null = null;
 
+      const timeoutPromise = new Promise<Record<string, unknown>>((_, reject) =>
+        setTimeout(() => reject(new Error("Timed out")), EVALUATION_TIMEOUT)
+      );
+
       try {
+        judgeEngine.interruptGenerate();
         await judgeEngine.resetChat(false, judgeModelId || undefined);
 
-        const stream = await judgeEngine.chat.completions.create({
-          messages: judgeMessages,
-          stream: true,
-          stream_options: { include_usage: true },
-          temperature: 0.3,
-          max_tokens: 1024,
-        });
+        const completionPromise = (async () => {
+          const stream = await judgeEngine.chat.completions.create({
+            messages: judgeMessages,
+            stream: true,
+            stream_options: { include_usage: true },
+            temperature: 0.3,
+            max_tokens: 1024,
+          });
 
-        for await (const chunk of stream) {
-          const content = chunk.choices[0]?.delta?.content || "";
-          rawResponse += content;
-        }
+          for await (const chunk of stream) {
+            rawResponse += chunk.choices[0]?.delta?.content || "";
+          }
 
-        parsedData = extractJsonFromResponse(rawResponse);
+          return extractJsonFromResponse(rawResponse);
+        })();
+
+        parsedData = await Promise.race([completionPromise, timeoutPromise]);
       } catch (err) {
+        judgeEngine.interruptGenerate();
         const msg = err instanceof Error ? err.message : String(err);
         setScoringError(`Evaluation failed: ${msg}`);
         setIsScoring(false);
@@ -215,7 +226,9 @@ export function useScoring() {
 
       if (!parsedData) {
         try {
+          judgeEngine.interruptGenerate();
           await judgeEngine.resetChat(false, judgeModelId || undefined);
+
           const retryMessages: import("@mlc-ai/web-llm").ChatCompletionMessageParam[] = [
             {
               role: "user",
@@ -224,22 +237,28 @@ export function useScoring() {
           ];
 
           rawResponse = "";
-          const retryStream = await judgeEngine.chat.completions.create({
-            messages: retryMessages,
-            stream: true,
-            stream_options: { include_usage: true },
-            temperature: 0.1,
-            max_tokens: 1024,
-          });
+          const retryCompletionPromise = (async () => {
+            const retryStream = await judgeEngine.chat.completions.create({
+              messages: retryMessages,
+              stream: true,
+              stream_options: { include_usage: true },
+              temperature: 0.1,
+              max_tokens: 1024,
+            });
 
-          for await (const chunk of retryStream) {
-            const content = chunk.choices[0]?.delta?.content || "";
-            rawResponse += content;
-          }
+            for await (const chunk of retryStream) {
+              rawResponse += chunk.choices[0]?.delta?.content || "";
+            }
 
-          parsedData = extractJsonFromResponse(rawResponse);
-        } catch {
-          // fall through to error below
+            return extractJsonFromResponse(rawResponse);
+          })();
+
+          parsedData = await Promise.race([retryCompletionPromise, timeoutPromise]);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setScoringError(`Evaluation failed: ${msg}`);
+          setIsScoring(false);
+          return;
         }
       }
 
