@@ -193,7 +193,18 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (!evaluationResult) return;
+    if (!evaluationResult) {
+      setResults((prev) => {
+        const next = { ...prev };
+        for (const key of Object.keys(next)) {
+          if (next[key].scores) {
+            next[key] = { ...next[key], scores: undefined };
+          }
+        }
+        return next;
+      });
+      return;
+    }
     setResults((prev) => {
       const next = { ...prev };
       for (const score of evaluationResult.scores) {

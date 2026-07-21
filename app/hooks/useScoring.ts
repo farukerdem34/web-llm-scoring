@@ -45,33 +45,23 @@ ${text}
 `;
   }
 
-  const jsonExample = `{
-  "responses": [
-    ${responses
-      .map(
-        (_, i) => `{
-      "model": "${responseLabels[i] || `${i + 1}`}",
-      "accuracy": 8,
-      "helpfulness": 7,
-      "coherence": 9,
-      "completeness": 6,
-      "overall": 7.5,
-      "reasoning": "Brief explanation of the evaluation."
-    }`
-      )
-      .join(",\n    ")}
-  ]
-}`;
-
   judgePrompt += `## Evaluation Task
-Rate each response on these criteria (1-10 scale):
-- Accuracy: Is the information correct and factual?
-- Helpfulness: Does it effectively address the user's needs?
-- Coherence: Is it well-structured and logical?
-- Completeness: Does it cover all aspects of the question?
+Score each response on these criteria (1-10, where 10 is best):
+- accuracy: Is the information correct and factual?
+- helpfulness: Does it effectively address the user's needs?
+- coherence: Is it well-structured and logical?
+- completeness: Does it cover all aspects of the question?
 
-Respond with a JSON object containing a "responses" array with exactly ${responses.length} entries (one per response). Use this format:
-${jsonExample}`;
+Output ONLY valid JSON — no markdown, no explanation, no extra text. The JSON must be an object with a "responses" array of exactly ${responses.length} objects, each containing these keys:
+  "model": string (the response label)
+  "accuracy": integer 1-10
+  "helpfulness": integer 1-10
+  "coherence": integer 1-10
+  "completeness": integer 1-10
+  "overall": number (average of the four scores)
+  "reasoning": string (one-sentence justification)
+
+JSON format: {"responses":[{"model":"LABEL","accuracy":SCORE,"helpfulness":SCORE,"coherence":SCORE,"completeness":SCORE,"overall":AVG,"reasoning":"TEXT"}]}`;
 
   return judgePrompt;
 }
