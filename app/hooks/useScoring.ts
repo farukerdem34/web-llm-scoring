@@ -45,6 +45,24 @@ ${text}
 `;
   }
 
+  const jsonExample = `{
+  "responses": [
+    ${responses
+      .map(
+        (_, i) => `{
+      "model": "${responseLabels[i] || `${i + 1}`}",
+      "accuracy": 8,
+      "helpfulness": 7,
+      "coherence": 9,
+      "completeness": 6,
+      "overall": 7.5,
+      "reasoning": "Brief explanation of the evaluation."
+    }`
+      )
+      .join(",\n    ")}
+  ]
+}`;
+
   judgePrompt += `## Evaluation Task
 Rate each response on these criteria (1-10 scale):
 - Accuracy: Is the information correct and factual?
@@ -52,20 +70,8 @@ Rate each response on these criteria (1-10 scale):
 - Coherence: Is it well-structured and logical?
 - Completeness: Does it cover all aspects of the question?
 
-Respond in this exact JSON format:
-{
-  "responses": [
-    {
-      "model": "Model A",
-      "accuracy": 8,
-      "helpfulness": 7,
-      "coherence": 9,
-      "completeness": 6,
-      "overall": 7.5,
-      "reasoning": "Brief explanation of the evaluation."
-    }
-  ]
-}`;
+Respond with a JSON object containing a "responses" array with exactly ${responses.length} entries (one per response). Use this format:
+${jsonExample}`;
 
   return judgePrompt;
 }
