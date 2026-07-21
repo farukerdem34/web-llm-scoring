@@ -56,7 +56,7 @@ Respond in this exact JSON format:
 {
   "responses": [
     {
-      "model": "${MODELS[responses[0]?.modelId]?.name || "Model"}",
+      "model": "Model A",
       "accuracy": 8,
       "helpfulness": 7,
       "coherence": 9,
@@ -95,24 +95,29 @@ function extractJsonFromResponse(text: string): Record<string, unknown> | null {
 
 function validateScores(data: Record<string, unknown>): ScoreResult[] | null {
   const responses = data.responses;
-  if (!Array.isArray(responses)) return null;
+  if (!Array.isArray(responses) || responses.length === 0) return null;
 
   const results: ScoreResult[] = [];
   for (const item of responses) {
-    if (typeof item !== "object" || item === null) return null;
+    if (typeof item !== "object" || item === null) continue;
     const obj = item as Record<string, unknown>;
 
-    if (typeof obj.model !== "string") return null;
+    if (typeof obj.model !== "string") continue;
 
     const scores: Record<ScoreCriterion, number> = {} as Record<
       ScoreCriterion,
       number
     >;
+    let valid = true;
     for (const criterion of SCORE_CRITERIA) {
       const val = obj[criterion];
-      if (typeof val !== "number" || val < 1 || val > 10) return null;
+      if (typeof val !== "number" || val < 1 || val > 10) {
+        valid = false;
+        break;
+      }
       scores[criterion] = Math.round(val);
     }
+    if (!valid) continue;
 
     const overallVal = obj.overall;
     const overallScore =
@@ -135,7 +140,7 @@ function validateScores(data: Record<string, unknown>): ScoreResult[] | null {
     });
   }
 
-  return results;
+  return results.length > 0 ? results : null;
 }
 
 export function useScoring() {
@@ -167,6 +172,19 @@ export function useScoring() {
       }
 
       const judgePrompt = buildJudgePrompt(prompt, systemPrompt, responses);
+
+      const judgeModelConfig = MODELS[judgeModelId];
+      const contextWindowSize = judgeModelConfig?.chatOptions?.context_window_size;
+      if (contextWindowSize) {
+        const estimatedTokens = Math.ceil(judgePrompt.length / 4);
+        if (estimatedTokens > contextWindowSize * 0.8) {
+          setScoringError(
+            `Responses may be too long for ${judgeModelConfig.name}'s context window (${contextWindowSize} tokens). Consider reducing max_tokens.`
+          );
+          setIsScoring(false);
+          return;
+        }
+      }
 
       const judgeMessages: import("@mlc-ai/web-llm").ChatCompletionMessageParam[] = [
         { role: "user", content: judgePrompt },

@@ -134,6 +134,11 @@ export default function Home() {
     setJudgeModel(largestReady);
   }, [selectedModels, modelStatus, judgeModelId, setJudgeModel]);
 
+  const handleClear = () => {
+    clearResults();
+    clearScores();
+  };
+
   const handleToggle = (modelId: string) => {
     setSelectedModels((prev) => {
       const isSelected = prev.includes(modelId);
@@ -176,10 +181,10 @@ export default function Home() {
     generate(prompt, selectedModels, config);
   };
 
-  const handleEvaluate = () => {
+  const handleEvaluate = async () => {
     const judgeEngine = getEngine(judgeModelId);
     if (!judgeEngine) return;
-    evaluateAll(
+    await evaluateAll(
       lastPromptRef.current,
       config.system_prompt,
       results,
@@ -412,7 +417,7 @@ export default function Home() {
                 judgeModelId={judgeModelId}
                 modelStatus={modelStatus}
                 onGenerate={handleGenerate}
-                onClear={clearResults}
+                onClear={handleClear}
                 onCancel={cancelGeneration}
                 onEvaluate={handleEvaluate}
                 onSetJudgeModel={setJudgeModel}

@@ -16,7 +16,13 @@ export function EvaluateButton({
       onClick={onClick}
       disabled={disabled || isScoring}
       className="h-12 px-4 border border-[var(--sand-200)] text-[var(--ink-muted)] rounded-xl font-medium hover:bg-[var(--sand-100)] focus:outline-none focus:ring-2 focus:ring-[var(--sand-400)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-2"
-      title={disabled ? "Load a model to use as judge" : "Evaluate all responses"}
+      title={
+        isScoring
+          ? "Evaluating responses..."
+          : disabled
+            ? "Load a model to use as judge"
+            : "Evaluate all responses"
+      }
     >
       {isScoring ? (
         <>
