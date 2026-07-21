@@ -12,7 +12,6 @@ import {
 import { MODELS } from "@/app/lib/models";
 
 const MAX_RESPONSE_CHARS = 2000;
-const RESPONSE_LABELS = "ABCDEFGHIJKLMNOP";
 
 function truncateResponse(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
@@ -24,6 +23,8 @@ function buildJudgePrompt(
   systemPrompt: string,
   responses: Array<{ modelId: string; text: string }>
 ): string {
+  const responseLabels = "ABCDEFGHIJKLMNOP";
+
   let judgePrompt = `You are an expert evaluator comparing AI assistant responses.
 
 ## User Prompt
@@ -35,7 +36,7 @@ ${systemPrompt || "(none)"}
 `;
 
   for (let i = 0; i < responses.length; i++) {
-    const label = RESPONSE_LABELS[i] || `${i + 1}`;
+    const label = responseLabels[i] || `${i + 1}`;
     const modelName = MODELS[responses[i].modelId]?.name || responses[i].modelId;
     const text = truncateResponse(responses[i].text, MAX_RESPONSE_CHARS);
     judgePrompt += `## Response ${label} (${modelName})
@@ -45,33 +46,22 @@ ${text}
   }
 
   judgePrompt += `## Evaluation Task
-Rate EACH response on these criteria (1-10 scale):
+Rate each response on these criteria (1-10 scale):
 - Accuracy: Is the information correct and factual?
 - Helpfulness: Does it effectively address the user's needs?
 - Coherence: Is it well-structured and logical?
 - Completeness: Does it cover all aspects of the question?
 
-You MUST return a score for EVERY response listed above. Do not skip any.
-
 Respond in this exact JSON format:
 {
   "responses": [
     {
-      "model": "A",
+      "model": "Model A",
       "accuracy": 8,
       "helpfulness": 7,
       "coherence": 9,
       "completeness": 6,
       "overall": 7.5,
-      "reasoning": "Brief explanation of the evaluation."
-    },
-    {
-      "model": "B",
-      "accuracy": 9,
-      "helpfulness": 8,
-      "coherence": 8,
-      "completeness": 9,
-      "overall": 8.5,
       "reasoning": "Brief explanation of the evaluation."
     }
   ]
@@ -211,7 +201,7 @@ export function useScoring() {
           stream: true,
           stream_options: { include_usage: true },
           temperature: 0.3,
-          max_tokens: 2048,
+          max_tokens: 1024,
         });
 
         for await (const chunk of stream) {
@@ -243,7 +233,7 @@ export function useScoring() {
             stream: true,
             stream_options: { include_usage: true },
             temperature: 0.1,
-            max_tokens: 2048,
+            max_tokens: 1024,
           });
 
           for await (const chunk of retryStream) {
@@ -274,23 +264,9 @@ export function useScoring() {
         return;
       }
 
-      if (validatedScores.length !== responses.length) {
-        setScoringError(
-          `Judge returned ${validatedScores.length} score(s) for ${responses.length} response(s). Please try again.`
-        );
-        setIsScoring(false);
-        return;
-      }
-
-      const labelToModelId = new Map<string, string>();
-      responses.forEach((r, i) => {
-        const label = RESPONSE_LABELS[i] || `${i + 1}`;
-        labelToModelId.set(label, r.modelId);
-      });
-      validatedScores.forEach((score) => {
-        const raw = score.modelId.trim();
-        const letter = raw.replace(/^Model\s+/i, "");
-        score.modelId = labelToModelId.get(letter) || labelToModelId.get(raw) || "";
+      const modelIds = responses.map((r) => r.modelId);
+      validatedScores.forEach((score, i) => {
+        score.modelId = modelIds[i] || "";
       });
 
       const evaluationResult: EvaluationResult = {
